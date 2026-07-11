@@ -1,0 +1,10 @@
+[package]
+name = "kashtheking/attributor"
+description = "An object for reading/writing attributes of an instance as if they were properties. Also comes with a :Destroy() function for easy cleanup."
+license = "MIT"
+version = "1.0.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+exclude = ["rokit.toml"]
+
+[dependencies]

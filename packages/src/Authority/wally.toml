@@ -1,0 +1,8 @@
+[package]
+name = "kashtheking/authority"
+description = "A server-authorative state handler that uses attributes to replicate values."
+version = "0.2.3"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]

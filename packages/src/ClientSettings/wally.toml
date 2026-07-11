@@ -1,0 +1,11 @@
+[package]
+name = "kashtheking/local-settings"
+authors = ["KashTheKing"]
+description = "A bare-bones module for storing and changing local settings. Uses Signal to fire an event when a setting is changed."
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+exclude = ["rokit.toml"]
+
+[dependencies]
+Signal = "sleitnick/signal@2.0.3"

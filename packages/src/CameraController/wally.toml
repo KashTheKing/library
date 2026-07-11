@@ -1,0 +1,11 @@
+[package]
+name = "kashtheking/camera-controller"
+authors = ["KashTheKing"]
+description = "An object oriented camera controller for Roblox. Uses Sleitnick's Trove for easy cleanup and use. If you want an easy way to manage the camera in your game, this module is for you."
+version = "1.5.4"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+exclude = ["rokit.toml"]
+
+[dependencies]
+Trove = "sleitnick/trove@1.5.1"

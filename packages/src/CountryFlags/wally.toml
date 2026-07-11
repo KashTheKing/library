@@ -1,0 +1,9 @@
+[package]
+name = "kashtheking/Country-Flags"
+author = "@KashTheKing"
+description = "A utility module for getting the emoji for a country/region/language code. Also has utilities for getting country/region/language codes."
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]

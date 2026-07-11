@@ -1,0 +1,12 @@
+[package]
+name = "kashtheking/hitbox"
+description = "A simple object oriented hitbox module that utilizes :GetPartsInPart() and sleitnick's trove for easy cleanup. Also uses sleitnick's Timer module to scan the hitbox for a given duration."
+authors = ["KashTheKing"]
+version = "1.0.3"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+exclude = ["rokit.toml"]
+
+[dependencies]
+Trove = "sleitnick/trove@1.5.1"
+Timer = "sleitnick/timer@1.1.2"

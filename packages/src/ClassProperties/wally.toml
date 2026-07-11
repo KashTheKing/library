@@ -1,0 +1,10 @@
+[package]
+name = "kashtheking/class-properties"
+authors = ["KashTheKing"]
+description = "A list of typed constructors for each Roblox instance's properties. Useful for type-checking pseudo-instances"
+version = "0.2.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+exclude = ["rokit.toml"]
+
+[dependencies]

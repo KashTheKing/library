@@ -1,0 +1,9 @@
+[package]
+name = "kashtheking/predicates"
+version = "0.2.3"
+description = "A utility library for predicates. Primarily used in my kashtheking/binder package."
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]
+T = "kashtheking/t@1.0.0"
