@@ -1,4 +1,4 @@
-<img width="512" height="512" alt="Bounding Box Plugin Icon" src="https://github.com/user-attachments/assets/be62bb3d-7d34-4e31-8cab-eb94f468578e" />
+<img width="256" height="256" alt="Bounding Box Plugin Icon" src="https://github.com/user-attachments/assets/8b8d8913-a11f-49d2-8df7-23aa648b7596" />
 
 # Bounding Box
 Make a part that matches a model's bounding box, in one click.
