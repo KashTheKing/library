@@ -1,2 +1,3 @@
 # Guides
 
+This directory is a work in progress. Guides and tutorials are planned and will be uploaded eventually. This might take a while...
