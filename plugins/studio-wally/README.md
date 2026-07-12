@@ -13,4 +13,4 @@ https://create.roblox.com/store/asset/133519889832441/Studio-Wally-With-package-
 ## How to use:
 1. Open the widget
 2. Search a wally package (i.e. `kashtheking/binder`)
-3. Click the download button and choose a download option. The "Shared module" is recommended for almost all packages.
+3. Click the download button and choose a download option. The "Shared module" option is recommended for almost all packages.
