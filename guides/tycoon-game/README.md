@@ -1,2 +1,2 @@
-\# Tycoon Game - Full Guide
+# Tycoon Game - Full Guide
 

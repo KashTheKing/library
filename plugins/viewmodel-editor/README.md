@@ -1,4 +1,4 @@
-\# ViewModel Editor - FPS Made Easy
+# ViewModel Editor - FPS Made Easy
 
 
 

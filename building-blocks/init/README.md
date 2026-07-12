@@ -1,2 +1,2 @@
-\# Init - Trusted module loader
+# Init - Trusted module loader
 

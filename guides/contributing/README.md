@@ -1,2 +1,2 @@
-\# Contributing Guide - How to contribute to this library
+# Contributing Guide - How to contribute to this library
 

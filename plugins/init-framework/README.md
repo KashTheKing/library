@@ -1,2 +1,2 @@
-\# Init Framework - One Click Game Setup
+# Init Framework - One Click Game Setup
 
