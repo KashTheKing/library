@@ -1,3 +1,5 @@
+<img width="1080" height="1080" alt="Wally Logo" src="https://github.com/user-attachments/assets/38ca3b09-ca8d-4feb-9188-a897d9ddc77c" />
+
 # Studio Wally
 Search and download Wally packages, without ever leaving Roblox Studio
 
