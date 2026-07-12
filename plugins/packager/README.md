@@ -1,7 +1,7 @@
 <img width="256" height="256" alt="Packager" src="https://github.com/user-attachments/assets/aef0c9ed-1941-42c2-812e-7f8d414ba278" />
 
 # Packager
-Easily Package/Unpackage systems into your experiences
+Easily Package/Unpack systems into your experiences
 
 I made this plugin because I find myself needing to reuse complex  systems very often.
 The process of zipping a system up into a folder, adding instructions for where to put everything, and unzipping it in another experience can be a huge pain.
