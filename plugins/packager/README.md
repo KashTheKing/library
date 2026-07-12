@@ -1,3 +1,5 @@
+<img width="256" height="256" alt="Packager" src="https://github.com/user-attachments/assets/aef0c9ed-1941-42c2-812e-7f8d414ba278" />
+
 # Packager
 Easily Package/Unpackage systems into your experiences
 
