@@ -31,3 +31,7 @@ https://create.roblox.com/store/asset/85885451493408/Packager
 3. Click "Unpackage" to unpack it into your experience
 
 > Note: Packager does not scan for malicious instances or code. I am not responsible for the systems you unpack into your experience. Please only unpack packages from trusted sources.
+
+## Examples:
+Module with Dependencies Example
+https://github.com/KashTheKing/library/tree/main/building-blocks/packager-blocks/damage-part-example
