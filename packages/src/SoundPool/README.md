@@ -1,4 +1,4 @@
-# SoundPool
+# SoundPool (DEPRECATED)
 
 A SoundPool class. Useful for SFX in fighting games. Uses Sleitnick's trove and signal packages along with frqstbite's object-pool package.
 

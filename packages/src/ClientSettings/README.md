@@ -1,4 +1,4 @@
-# ClientSettings
+# ClientSettings (DEPRECATED)
 
 A bare-bones module for storing and changing local settings. Uses Signal to fire an event when a setting is changed.
 

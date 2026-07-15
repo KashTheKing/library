@@ -1,4 +1,4 @@
-# StateManager
+# StateManager (DEPRECATED)
 
 A state manager for Roblox that uses Sleitnick's Trove and Signal for easy cleanup and use, as well as a configurable setup for each StateManager and full type checking in strict. If you want an easy way to handle state in your game, this module is for you. Previous versions are broken, DO NOT USE THEM!
 
