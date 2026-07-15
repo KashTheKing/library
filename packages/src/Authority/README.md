@@ -1,6 +1,6 @@
-# Packet
+# Authority
 
-A buffer-based networking library for Roblox.
+A server-authorative state handler that uses attributes to replicate values.
 
 ## Installation
 
@@ -9,7 +9,7 @@ A buffer-based networking library for Roblox.
 Using the [Studio Wally plugin](../../../plugins/studio-wally):
 
 1. Open the widget
-2. Search `kashtheking/packet`
+2. Search `kashtheking/authority`
 3. Click the download button and choose a download option ("Shared module" is recommended)
 
 ### Wally
@@ -17,5 +17,5 @@ Using the [Studio Wally plugin](../../../plugins/studio-wally):
 Add this to the `[dependencies]` section of your `wally.toml`:
 
 ```toml
-Packet = "kashtheking/packet@1.0.0"
+Authority = "kashtheking/authority@0.2.3"
 ```

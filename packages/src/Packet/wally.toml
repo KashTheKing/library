@@ -1,6 +1,7 @@
 [package]
 name = "kashtheking/packet"
 version = "1.0.0"
+description = "A buffer-based networking library for Roblox."
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 

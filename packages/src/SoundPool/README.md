@@ -1,6 +1,6 @@
-# Packet
+# SoundPool
 
-A buffer-based networking library for Roblox.
+A SoundPool class. Useful for SFX in fighting games. Uses Sleitnick's trove and signal packages along with frqstbite's object-pool package.
 
 ## Installation
 
@@ -9,7 +9,7 @@ A buffer-based networking library for Roblox.
 Using the [Studio Wally plugin](../../../plugins/studio-wally):
 
 1. Open the widget
-2. Search `kashtheking/packet`
+2. Search `kashtheking/sound-pool`
 3. Click the download button and choose a download option ("Shared module" is recommended)
 
 ### Wally
@@ -17,5 +17,5 @@ Using the [Studio Wally plugin](../../../plugins/studio-wally):
 Add this to the `[dependencies]` section of your `wally.toml`:
 
 ```toml
-Packet = "kashtheking/packet@1.0.0"
+SoundPool = "kashtheking/sound-pool@0.1.0"
 ```

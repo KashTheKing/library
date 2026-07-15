@@ -1,6 +1,6 @@
-# Packet
+# CameraController
 
-A buffer-based networking library for Roblox.
+An object oriented camera controller for Roblox. Uses Sleitnick's Trove for easy cleanup and use. If you want an easy way to manage the camera in your game, this module is for you.
 
 ## Installation
 
@@ -9,7 +9,7 @@ A buffer-based networking library for Roblox.
 Using the [Studio Wally plugin](../../../plugins/studio-wally):
 
 1. Open the widget
-2. Search `kashtheking/packet`
+2. Search `kashtheking/camera-controller`
 3. Click the download button and choose a download option ("Shared module" is recommended)
 
 ### Wally
@@ -17,5 +17,5 @@ Using the [Studio Wally plugin](../../../plugins/studio-wally):
 Add this to the `[dependencies]` section of your `wally.toml`:
 
 ```toml
-Packet = "kashtheking/packet@1.0.0"
+CameraController = "kashtheking/camera-controller@1.5.4"
 ```
