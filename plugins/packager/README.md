@@ -1,5 +1,7 @@
+<img width="256" height="256" alt="Packager" src="https://github.com/user-attachments/assets/aef0c9ed-1941-42c2-812e-7f8d414ba278" />
+
 # Packager
-Easily Package/Unpackage systems into your experiences
+Easily Package/Unpack systems into your experiences
 
 I made this plugin because I find myself needing to reuse complex  systems very often.
 The process of zipping a system up into a folder, adding instructions for where to put everything, and unzipping it in another experience can be a huge pain.
@@ -29,3 +31,7 @@ https://create.roblox.com/store/asset/85885451493408/Packager
 3. Click "Unpackage" to unpack it into your experience
 
 > Note: Packager does not scan for malicious instances or code. I am not responsible for the systems you unpack into your experience. Please only unpack packages from trusted sources.
+
+## Examples:
+Module with Dependencies Example
+https://github.com/KashTheKing/library/tree/main/building-blocks/packager-blocks/damage-part-example

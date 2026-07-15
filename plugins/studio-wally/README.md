@@ -1,3 +1,5 @@
+<img width="256" height="256" alt="Wally Logo" src="https://github.com/user-attachments/assets/38ca3b09-ca8d-4feb-9188-a897d9ddc77c" />
+
 # Studio Wally
 Search and download Wally packages, without ever leaving Roblox Studio
 
@@ -10,5 +12,5 @@ https://create.roblox.com/store/asset/133519889832441/Studio-Wally-With-package-
 
 ## How to use:
 1. Open the widget
-2. Search a wally package (i.e. "kashtheking/binder")
-3. Click the download button and choose a download option. The "Shared module" is recommended for almost all packages.
+2. Search a wally package (i.e. `kashtheking/binder`)
+3. Click the download button and choose a download option. The "Shared module" option is recommended for almost all packages.

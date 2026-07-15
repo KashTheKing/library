@@ -1,8 +1,8 @@
-# KashTheKing's Library
+# KashTheKing's Library (WIP)
 
-Reusable Roblox building blocks, plugins, packages, and guides. Grab what you need.
+Reusable Roblox building blocks, plugins, packages, and guides. Grab what you need!
 
-- **[Building Blocks](building-blocks)** — prebuilt models & scripts
-- **[Plugins](plugins)** — Roblox Studio plugins
-- **[Packages](packages)** — Reusable utility modules
-- **[Guides](guides)** — how-tos, tutorials, and references
+- **[Building Blocks](building-blocks)** - Fully-built systems and assets
+- **[Plugins](plugins)** - My Roblox Studio plugins/plugin forks
+- **[Packages](packages)** - Source code for all of my distributed packages
+- **[Guides](guides)** - Full-explanation guides, tutorials, resources, and references
