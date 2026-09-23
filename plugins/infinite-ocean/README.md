@@ -17,10 +17,11 @@ state.
 - Fast/Regular/Realistic quality tiers, custom water/foam textures and materials
 
 The plugin is paid and closed-source; the underlying `Ocean` module it installs is MIT-licensed
-and open source.
+and open source: https://github.com/KashTheKing/ocean
 
 ## Installation
-Source and build instructions: https://github.com/KashTheKing/ocean
+Get the plugin
+https://create.roblox.com/store/asset/76752250508724/Infinite-Ocean
 
 ## How to use:
 1. Install the plugin and open the *Ocean* panel.
