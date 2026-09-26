@@ -1,7 +1,7 @@
 ---
 title: t
 sidebar_label: t
-sidebar_position: 16
+sidebar_position: 17
 description: "A runtime type checker: build a check once, validate any value with a clear error message."
 ---
 

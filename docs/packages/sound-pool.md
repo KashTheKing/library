@@ -1,7 +1,7 @@
 ---
 title: SoundPool
 sidebar_label: SoundPool (deprecated)
-sidebar_position: 14
+sidebar_position: 15
 description: "A pool of positional Sound parts for rapid-fire SFX, such as hits in a fighting game."
 ---
 

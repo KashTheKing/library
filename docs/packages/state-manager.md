@@ -1,7 +1,7 @@
 ---
 title: StateManager
 sidebar_label: StateManager (deprecated)
-sidebar_position: 15
+sidebar_position: 16
 description: "A named-state machine with enter/exit callbacks and a Trove per state."
 ---
 

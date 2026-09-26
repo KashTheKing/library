@@ -8,7 +8,7 @@ description: Infinite Gerstner-wave ocean for Roblox with buoyancy, swimming and
 
 <div className="library-links">
 
-[Full documentation](https://kashtheking.com/infinite-ocean/) [Get it on the Creator Store](https://create.roblox.com/store/asset/76752250508724/Infinite-Ocean) [Ocean module source](https://github.com/KashTheKing/ocean) [This page's source](https://github.com/KashTheKing/library/tree/main/plugins/infinite-ocean)
+[Full documentation](https://kashtheking.com/infinite-ocean/) [Get it on the Creator Store](https://create.roblox.com/store/asset/76752250508724/Infinite-Ocean) [Ocean package](../packages/ocean.md) [Ocean module source](https://github.com/KashTheKing/library/tree/main/packages/src/Ocean) [This page's source](https://github.com/KashTheKing/library/tree/main/plugins/infinite-ocean)
 
 </div>
 
@@ -26,7 +26,7 @@ Server and clients run the same wave function off `workspace:GetServerTimeNow()`
 - Live Edit-mode preview, in-Studio settings panel with colour picker, float and obstacle placement tools
 - Fast/Regular/Realistic quality tiers, custom water and foam textures and materials
 
-The plugin is paid and closed-source. The `Ocean` module it installs is MIT licensed and open source at [github.com/KashTheKing/ocean](https://github.com/KashTheKing/ocean).
+The plugin is paid and closed-source. The `Ocean` module it installs is MIT licensed, open source in this library at [packages/src/Ocean](https://github.com/KashTheKing/library/tree/main/packages/src/Ocean), and installable on its own as the Wally package [`kashtheking/ocean`](../packages/ocean.md).
 
 ## How to use
 

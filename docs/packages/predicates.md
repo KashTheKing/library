@@ -1,7 +1,7 @@
 ---
 title: Predicates
 sidebar_label: Predicates
-sidebar_position: 13
+sidebar_position: 14
 description: "Composable predicate functions for instances: attributes, children, characters, players, and combinations."
 ---
 

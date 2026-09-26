@@ -79,6 +79,12 @@ Most packages depend on [sleitnick's Trove and Signal](https://sleitnick.github.
     <p>Object-oriented hitboxes on <code>GetPartsInPart</code>, with welding, timed scans and humanoid filtering.</p>
     <span className="library-card-cta">Docs →</span>
   </a>
+  <a className="library-card" href="./ocean/">
+    <span className="library-card-meta">@1.0.2</span>
+    <h3>Ocean</h3>
+    <p>The Infinite Ocean module: an infinite Gerstner-wave sea on <code>EditableMesh</code>, with weather, zones, water queries and events.</p>
+    <span className="library-card-cta">Docs →</span>
+  </a>
 </div>
 
 ## Utilities
@@ -161,6 +167,7 @@ Most packages depend on [sleitnick's Trove and Signal](https://sleitnick.github.
 | [Hitbox](./hitbox.md) | `kashtheking/hitbox` | `@1.0.3` | Object-oriented hitboxes on `GetPartsInPart`, with welding, timed scans and humanoid filtering. |
 | [Init](./init.md) |  | WIP | My trusted module loader. Being reworked; the current version ships as a building block. |
 | [Mechanic](./mechanic.md) | `kashtheking/mechanic` | `@4.0.3` (deprecated) | A component-style binder that applies logic to CollectionService-tagged instances. |
+| [Ocean](./ocean.md) | `kashtheking/ocean` | `@1.0.2` | The Infinite Ocean module: an infinite Gerstner-wave sea on `EditableMesh`, with weather, zones, water queries and events. |
 | [Packet](./packet.md) | `kashtheking/packet` | `@1.0.0` | Suphi Kaner's buffer-based networking library: declare a packet's types once, then fire and respond with typed values. |
 | [Predicates](./predicates.md) | `kashtheking/predicates` | `@0.2.3` | Composable predicate functions for instances: attributes, children, characters, players, and combinations. |
 | [SoundPool](./sound-pool.md) | `kashtheking/sound-pool` | `@0.1.0` (deprecated) | A pool of positional Sound parts for rapid-fire SFX, such as hits in a fighting game. |

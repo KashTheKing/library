@@ -1,7 +1,7 @@
 ---
 title: Packet
 sidebar_label: Packet
-sidebar_position: 12
+sidebar_position: 13
 description: "Suphi Kaner's buffer-based networking library: declare a packet's types once, then fire and respond with typed values."
 ---
 

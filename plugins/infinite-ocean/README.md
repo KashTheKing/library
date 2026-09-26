@@ -17,7 +17,7 @@ state.
 - Fast/Regular/Realistic quality tiers, custom water/foam textures and materials
 
 The plugin is paid and closed-source; the underlying `Ocean` module it installs is MIT-licensed
-and open source: https://github.com/KashTheKing/ocean
+and open source in this library: [packages/src/Ocean](../../packages/src/Ocean) (Wally: `kashtheking/ocean`)
 
 ## Installation
 Get the plugin
