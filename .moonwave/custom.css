@@ -108,8 +108,11 @@ h2 {
 .markdown img {
 	border-radius: 8px;
 	border: 1px solid var(--library-card-border);
-	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+	box-shadow: 0 12px 40px rgba(25, 26, 31, 0.15);
 	margin: 0.5rem 0 1.5rem;
+}
+[data-theme="dark"] .markdown img {
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 /* plugin icons and badges are small and square; no frame or shadow on those */
 .markdown img.library-icon,
@@ -131,9 +134,18 @@ table th {
 	background: var(--ifm-background-surface-color);
 }
 
-.theme-doc-sidebar-menu .menu__link--active {
+/* Sidebar: the current page is a filled blue row; a category that merely contains the current
+   page keeps the theme's grey row and gets blue text, so it reads in light and dark alike. */
+.theme-doc-sidebar-menu .menu__link--active:not(.menu__link--sublist) {
 	color: #ffffff;
 	background: var(--ifm-color-primary-dark);
+}
+.theme-doc-sidebar-menu .menu__link--sublist.menu__link--active {
+	color: var(--ifm-color-primary);
+	font-weight: 600;
+}
+.theme-doc-sidebar-menu .menu__list-item-collapsible--active {
+	background: var(--ifm-menu-color-background-active);
 }
 
 .button--primary {
@@ -176,6 +188,43 @@ table th {
 .api-property-name,
 .api-function-name {
 	color: var(--ifm-color-primary-lighter);
+}
+/* Moonwave colours its signatures for a dark background; on white paper use deeper tones of
+   the same hues, and a readable grey for the inline "-- description" text. The class names are
+   CSS-module hashed (e.g. blue_ieR2), hence the prefix selectors. */
+[data-theme="light"] {
+	--op-color: #a34d4d;
+}
+html[data-theme="light"] main code[class*="blue_"] {
+	color: #2856c9;
+}
+html[data-theme="light"] main code[class*="green_"] {
+	color: #0b7d57;
+}
+html[data-theme="light"] main code[class*="purple_"] {
+	color: #7a3ec2;
+}
+html[data-theme="light"] main code[class*="yellow_"] {
+	color: #9a6300;
+}
+html[data-theme="light"] main code[class*="orange_"] {
+	color: #c2410c;
+}
+html[data-theme="light"] main code[class*="cyan_"] {
+	color: #0b7590;
+}
+html[data-theme="light"] main code[class*="red_"] {
+	color: #c0243f;
+}
+[data-theme="light"] [class*="inlineDescription_"] {
+	color: #5f6370;
+}
+[data-theme="dark"] [class*="inlineDescription_"] {
+	color: #9a9ca6;
+}
+[data-theme="light"] .api-property-name,
+[data-theme="light"] .api-function-name {
+	color: var(--ifm-color-primary-darker);
 }
 
 /* Card grids: the hubs on Getting started, Packages, Plugins, Building Blocks and Guides */
@@ -227,6 +276,10 @@ table th {
 	background: rgba(51, 88, 255, 0.12);
 }
 .library-card-meta--deprecated {
+	color: #b02020;
+	background: rgba(190, 40, 40, 0.12);
+}
+[data-theme="dark"] .library-card-meta--deprecated {
 	color: #ff8a8a;
 	background: rgba(190, 40, 40, 0.18);
 }
