@@ -1,0 +1,6 @@
+{
+	"label": "Plugins",
+	"position": 3,
+	"collapsed": true,
+	"link": { "type": "doc", "id": "plugins/index" }
+}

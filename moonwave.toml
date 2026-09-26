@@ -1,0 +1,109 @@
+title = "KashTheKing's Library"
+gitRepoUrl = "https://github.com/KashTheKing/library"
+gitSourceBranch = "main"
+changelog = false
+
+[docusaurus]
+url = "https://kashtheking.com"
+baseUrl = "/library/"
+organizationName = "KashTheKing"
+projectName = "library"
+tagline = "Reusable Roblox packages, plugins, building blocks and guides. Grab what you need!"
+favicon = "img/favicon.svg"
+trailingSlash = true
+onBrokenAnchors = "ignore"
+
+[navbar]
+title = "KashTheKing's Library"
+
+[navbar.logo]
+src = "img/favicon.svg"
+alt = "KashTheKing's Library"
+
+# Moonwave adds "Docs" and "API" on the left and "GitHub" on the right; these sit between them.
+[[navbar.items]]
+to = "/docs/packages/"
+label = "Packages"
+position = "left"
+
+[[navbar.items]]
+to = "/docs/plugins/"
+label = "Plugins"
+position = "left"
+
+[[navbar.items]]
+to = "/docs/building-blocks/"
+label = "Building Blocks"
+position = "left"
+
+[[navbar.items]]
+to = "/docs/guides/"
+label = "Guides"
+position = "left"
+
+[[navbar.items]]
+href = "https://discord.gg/6HYgCk22eD"
+label = "Discord"
+position = "right"
+
+[[navbar.items]]
+to = "/docs/support/"
+label = "Support"
+position = "right"
+
+[footer]
+style = "dark"
+copyright = "Copyright © 2026 KashTheKing. Packages and building blocks are MIT; the Studio plugins are distributed on the Creator Store under their own terms."
+
+[[footer.links]]
+title = "Library"
+items = [
+	{ label = "Getting started", to = "/docs/intro/" },
+	{ label = "Packages", to = "/docs/packages/" },
+	{ label = "Plugins", to = "/docs/plugins/" },
+	{ label = "Building Blocks", to = "/docs/building-blocks/" },
+	{ label = "Guides", to = "/docs/guides/" },
+	{ label = "API reference", to = "/api/" },
+]
+
+[[footer.links]]
+title = "Source"
+items = [
+	{ label = "This repository on GitHub", href = "https://github.com/KashTheKing/library" },
+	{ label = "Report a bug or request a feature", href = "https://github.com/KashTheKing/library/issues" },
+	{ label = "Packages on Wally", href = "https://wally.run/?q=kashtheking" },
+	{ label = "Infinite Ocean docs", href = "https://kashtheking.com/infinite-ocean/" },
+	{ label = "kashtheking.com", href = "https://kashtheking.com/" },
+]
+
+[[footer.links]]
+title = "Help & contact"
+items = [
+	{ label = "Discord server", href = "https://discord.gg/6HYgCk22eD" },
+	{ label = "kashtheking123@gmail.com", href = "mailto:kashtheking123@gmail.com" },
+	{ label = "@KashTheKing on Roblox", href = "https://www.roblox.com/users/117445502/profile" },
+	{ label = "@KashTheKing_X on X", href = "https://x.com/KashTheKing_X" },
+	{ label = "@KashTheKingYT on YouTube", href = "https://youtube.com/@KashTheKingYT" },
+	{ label = "Support me on PayPal", href = "https://paypal.me/KashPlacek" },
+]
+
+# API sidebar: one class per package, grouped by what it is for.
+[[classOrder]]
+section = "Instances & lifecycle"
+classes = ["Binder", "Predicates", "Attributor", "Authority"]
+
+[[classOrder]]
+section = "Networking & state"
+classes = ["Packet"]
+
+[[classOrder]]
+section = "Gameplay"
+classes = ["Hitbox", "CameraController", "GuiHandler"]
+
+[[classOrder]]
+section = "Utilities"
+classes = ["t", "ClassProperties", "CountryFlags"]
+
+[[classOrder]]
+section = "Deprecated"
+classes = ["Mechanic", "AppliedMechanic", "StateManager", "State", "ClientSettings", "SoundPool", "SoundPlayback"]

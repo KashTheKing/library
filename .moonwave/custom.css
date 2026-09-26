@@ -1,0 +1,271 @@
+/* KashTheKing's Library theme: the same palette as Infinite Ocean and the Studio plugins.
+   Charcoal panels, the plugin blue for buttons, links and accents, its red for danger notes,
+   white text, dimmed grey captions. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+	--ifm-font-family-base: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+	--ifm-font-family-monospace: "JetBrains Mono", ui-monospace, Consolas, monospace;
+	--ifm-heading-font-weight: 700;
+	--ifm-code-font-size: 90%;
+	--ifm-global-radius: 8px;
+
+	/* light mode: white paper, charcoal text, the plugin blue */
+	--ifm-color-primary: #3358ff;
+	--ifm-color-primary-dark: #1f48ff;
+	--ifm-color-primary-darker: #143fff;
+	--ifm-color-primary-darkest: #0029e0;
+	--ifm-color-primary-light: #4d6dff;
+	--ifm-color-primary-lighter: #5a78ff;
+	--ifm-color-primary-lightest: #859bff;
+	--ifm-background-color: #f5f6f8;
+	--ifm-background-surface-color: #ffffff;
+	--ifm-font-color-base: #191a1f;
+	--ifm-heading-color: #191a1f;
+	--ifm-navbar-background-color: #202227;
+	--ifm-navbar-link-color: #ffffff;
+	--ifm-navbar-link-hover-color: #859bff;
+	--ifm-footer-background-color: #191a1f;
+	--ifm-menu-color: #191a1f;
+	--ifm-toc-border-color: rgba(25, 26, 31, 0.15);
+	--ifm-hero-background-color: #191a1f;
+	--ifm-hero-text-color: #ffffff;
+	--library-card: #ffffff;
+	--library-card-border: rgba(25, 26, 31, 0.12);
+	--library-dim: #6b6e78;
+	--library-danger: #be2828;
+	--docusaurus-highlighted-code-line-bg: rgba(51, 88, 255, 0.12);
+}
+
+[data-theme="dark"] {
+	--ifm-color-primary: #4d6dff;
+	--ifm-color-primary-dark: #3358ff;
+	--ifm-color-primary-darker: #1f48ff;
+	--ifm-color-primary-darkest: #0029e0;
+	--ifm-color-primary-light: #6a85ff;
+	--ifm-color-primary-lighter: #859bff;
+	--ifm-color-primary-lightest: #b0bfff;
+	--ifm-background-color: #191a1f;
+	--ifm-background-surface-color: #202227;
+	--ifm-font-color-base: #ffffff;
+	--ifm-heading-color: #ffffff;
+	--ifm-navbar-background-color: #202227;
+	--ifm-footer-background-color: #131418;
+	--ifm-menu-color: #e6e7ec;
+	--ifm-toc-border-color: rgba(255, 255, 255, 0.1);
+	--ifm-hero-background-color: #191a1f;
+	--ifm-color-emphasis-300: #353741;
+	--ifm-table-stripe-background: rgba(255, 255, 255, 0.03);
+	--ifm-code-background: #2a2c34;
+	--ifm-pre-background: #202227;
+	--library-card: #202227;
+	--library-card-border: #353741;
+	--library-dim: #9a9ca6;
+	--library-danger: #be2828;
+	--docusaurus-highlighted-code-line-bg: rgba(51, 88, 255, 0.18);
+}
+
+.navbar__title,
+.navbar__link,
+.navbar__toggle,
+.clean-btn.navbar__toggle,
+[data-theme="light"] .navbar .clean-btn {
+	color: #ffffff;
+}
+.navbar__link:hover,
+.navbar__link--active {
+	color: #859bff;
+}
+.navbar {
+	box-shadow: 0 1px 0 #353741;
+}
+/* dropdown menus open over the light page, so give them the panel colours explicitly */
+.navbar__items .dropdown__menu {
+	background: #202227;
+	border: 1px solid #353741;
+}
+.navbar__items .dropdown__link {
+	color: #e6e7ec;
+}
+.navbar__items .dropdown__link:hover,
+.navbar__items .dropdown__link--active {
+	color: #ffffff;
+	background: #353741;
+}
+
+h1,
+h2,
+h3,
+h4 {
+	color: var(--ifm-heading-color);
+	letter-spacing: -0.01em;
+}
+h2 {
+	border-bottom: 1px solid var(--library-card-border);
+	padding-bottom: 0.3rem;
+}
+
+.markdown img {
+	border-radius: 8px;
+	border: 1px solid var(--library-card-border);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+	margin: 0.5rem 0 1.5rem;
+}
+/* plugin icons and badges are small and square; no frame or shadow on those */
+.markdown img.library-icon,
+.markdown img[src*="user-attachments"] {
+	width: 128px;
+	height: 128px;
+	border-radius: 24px;
+	box-shadow: none;
+	border: 1px solid var(--library-card-border);
+	margin: 0 0 1rem;
+}
+
+.markdown table {
+	display: table;
+	width: 100%;
+}
+table th {
+	color: var(--ifm-heading-color);
+	background: var(--ifm-background-surface-color);
+}
+
+.theme-doc-sidebar-menu .menu__link--active {
+	color: #ffffff;
+	background: var(--ifm-color-primary-dark);
+}
+
+.button--primary {
+	--ifm-button-background-color: #3358ff;
+	--ifm-button-border-color: #3358ff;
+	color: #ffffff;
+}
+.button--primary:hover {
+	--ifm-button-background-color: #1f48ff;
+	--ifm-button-border-color: #1f48ff;
+	color: #ffffff;
+}
+.button--secondary,
+.button--outline {
+	--ifm-button-background-color: #353741;
+	--ifm-button-border-color: #353741;
+	color: #ffffff;
+}
+
+.alert--danger,
+.alert--warning {
+	--ifm-alert-background-color: rgba(190, 40, 40, 0.15);
+	--ifm-alert-border-color: #be2828;
+	--ifm-alert-foreground-color: var(--ifm-font-color-base);
+}
+.alert--info,
+.alert--secondary {
+	--ifm-alert-background-color: rgba(51, 88, 255, 0.12);
+	--ifm-alert-border-color: #3358ff;
+	--ifm-alert-foreground-color: var(--ifm-font-color-base);
+}
+
+.footer--dark {
+	--ifm-footer-title-color: #ffffff;
+	--ifm-footer-link-color: #e6e7ec;
+	--ifm-footer-color: #9a9ca6;
+}
+
+/* moonwave API pages */
+.api-property-name,
+.api-function-name {
+	color: var(--ifm-color-primary-lighter);
+}
+
+/* Card grids: the hubs on Getting started, Packages, Plugins, Building Blocks and Guides */
+.library-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: 1rem;
+	margin: 1rem 0 2rem;
+}
+.library-card {
+	display: block;
+	padding: 1.2rem 1.4rem;
+	border-radius: 10px;
+	background: var(--library-card);
+	border: 1px solid var(--library-card-border);
+	color: var(--ifm-font-color-base);
+	text-decoration: none;
+	transition: border-color 0.15s, transform 0.15s;
+}
+.library-card:hover {
+	border-color: var(--ifm-color-primary);
+	text-decoration: none;
+	color: var(--ifm-font-color-base);
+	transform: translateY(-2px);
+}
+.library-card h3 {
+	margin: 0 0 0.4rem;
+	color: var(--ifm-color-primary-lighter);
+}
+.library-card p {
+	margin: 0 0 0.6rem;
+	color: var(--library-dim);
+}
+.library-card-cta {
+	font-weight: 600;
+	color: var(--ifm-color-primary);
+}
+.library-card-meta {
+	display: inline-block;
+	margin-bottom: 0.5rem;
+	padding: 0.1rem 0.5rem;
+	border-radius: 999px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	font-family: var(--ifm-font-family-monospace);
+	color: var(--ifm-color-primary-lighter);
+	background: rgba(51, 88, 255, 0.12);
+}
+.library-card-meta--deprecated {
+	color: #ff8a8a;
+	background: rgba(190, 40, 40, 0.18);
+}
+
+/* The "Source | API | Store" link row at the top of every package, plugin and block page */
+.library-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin: -0.25rem 0 1.5rem;
+}
+.library-links a {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.3rem 0.75rem;
+	border-radius: 999px;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #ffffff;
+	background: #353741;
+	border: 1px solid #353741;
+	text-decoration: none;
+	transition: background 0.15s, border-color 0.15s;
+}
+.library-links a:hover {
+	background: #454857;
+	border-color: #454857;
+	color: #ffffff;
+	text-decoration: none;
+}
+.library-links a.library-links--primary {
+	background: #3358ff;
+	border-color: #3358ff;
+}
+.library-links a.library-links--primary:hover {
+	background: #1f48ff;
+	border-color: #1f48ff;
+}
+
+/* Wide versions table on the Packages hub */
+.library-versions td:nth-child(2) {
+	white-space: nowrap;
+}

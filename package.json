@@ -1,0 +1,13 @@
+{
+	"name": "library",
+	"private": true,
+	"description": "KashTheKing's Library: Roblox packages, plugins, building blocks and guides, documented at https://kashtheking.com/library/",
+	"scripts": {
+		"docs:dev": "moonwave dev --code packages/src",
+		"docs:build": "moonwave build --code packages/src --out-dir build/docs",
+		"publish:docs": "node scripts/publish-docs.js"
+	},
+	"devDependencies": {
+		"moonwave": "^1.4.2"
+	}
+}
