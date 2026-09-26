@@ -13,7 +13,7 @@ description: "Composable predicate functions for instances: attributes, children
 
 </div>
 
-<span className="library-card-meta">v0.2.3</span>
+<span className="library-card-meta">@0.2.3</span>
 
 **Composable predicate functions for instances: attributes, children, characters, players, and combinations.**
 
@@ -51,6 +51,10 @@ local Predicates = require(ReplicatedStorage.Packages.Predicates)
 Wally installs these automatically:
 
 - [`kashtheking/t@1.0.0`](https://wally.run/package/kashtheking/t)
+
+## Credits
+
+Type validation uses [t](./t.md), originally by [Osyris](https://github.com/osyrisrblx).
 
 ## API
 

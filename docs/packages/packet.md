@@ -2,7 +2,7 @@
 title: Packet
 sidebar_label: Packet
 sidebar_position: 12
-description: "Buffer-based networking: declare a packet's types once, then fire and respond with typed values."
+description: "Suphi Kaner's buffer-based networking library: declare a packet's types once, then fire and respond with typed values."
 ---
 
 # Packet
@@ -13,11 +13,11 @@ description: "Buffer-based networking: declare a packet's types once, then fire 
 
 </div>
 
-<span className="library-card-meta">v1.0.0</span>
+<span className="library-card-meta">@1.0.0</span>
 
-**Buffer-based networking: declare a packet's types once, then fire and respond with typed values.**
+**Suphi Kaner's buffer-based networking library: declare a packet's types once, then fire and respond with typed values.**
 
-Packet replaces ad-hoc RemoteEvents with named packets whose parameter types you declare once. Values are serialized into a `buffer` (with a side list for instances), so payloads are compact and every send is checked against the declared types. Packets support fire-and-forget on both sides, server-to-one-client, and request/response with a timeout.
+Packet is [Suphi Kaner](https://devforum.roblox.com/u/5uphi)'s buffer-based networking library, published here with a few quality-of-life changes. It replaces ad-hoc RemoteEvents with named packets whose parameter types you declare once. Values are serialized into a `buffer` (with a side list for instances), so payloads are compact and every send is checked against the declared types. Packets support fire-and-forget on both sides, server-to-one-client, and request/response with a timeout.
 
 ## Use it when
 
@@ -49,6 +49,10 @@ local Packet = require(ReplicatedStorage.Packages.Packet)
 ## Dependencies
 
 None. The package is a single module with no dependencies.
+
+## Credits
+
+**Packet was created by [Suphi Kaner](https://devforum.roblox.com/u/5uphi)** ([original release on the DevForum](https://devforum.roblox.com/t/packet-networking-library/3573907)). This is his library with a few quality-of-life changes by KashTheKing, published to Wally as `kashtheking/packet`. The design, the serialization engine and the bundled Signal, Task and Types modules are all his.
 
 ## API
 

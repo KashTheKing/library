@@ -46,6 +46,8 @@ const T = require(script.Parent.T)
 	T }`, where `T` is the bundled [t](/api/t) type-checking library for use as a
 	[TypeValidator](#TypeValidator).
 
+	**Credits:** type validation is done with [t](/api/t), originally by [Osyris](https://github.com/osyrisrblx). Wally installs it.
+
 	Installation and guide: [Predicates package page](/docs/packages/predicates).
 ]=]
 

@@ -176,6 +176,8 @@ local ReadU8, WriteU8, ReadU16, WriteU16 = reads.NumberU8, writes.NumberU8, read
 	local inventory = Packets.GetInventory:Fire() -- yields until the server replies (10 s timeout)
 	```
 
+	**Credits:** Packet was created by **[Suphi Kaner](https://devforum.roblox.com/u/5uphi)** ([original release on the DevForum](https://devforum.roblox.com/t/packet-networking-library/3573907)). This build is his library with a few quality-of-life changes by KashTheKing, published to Wally as `kashtheking/packet` so it can be installed like the rest of the library. The bundled `Signal`, `Task` and `Types` modules are his as well. All credit for the design and the serialization engine goes to Suphi.
+
 	Installation and guide: [Packet package page](/docs/packages/packet).
 ]=]
 local Packet = {}			:: Packet<...any, ...any>

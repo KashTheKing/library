@@ -51,6 +51,8 @@ local IS_SERVER = RunService:IsServer()
 	key, so prefer sentinel values over `nil` for optional state. Do not use `Destroy` as a key; it is
 	reserved for the cleanup method.
 
+	**Credits:** written by KashTheKing. No third-party dependencies.
+
 	Installation and guide: [Authority package page](/docs/packages/authority).
 ]=]
 

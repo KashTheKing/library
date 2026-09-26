@@ -92,11 +92,13 @@
 .sectionMeta {
 	display: inline-block;
 	margin-bottom: 0.6rem;
-	padding: 0.1rem 0.5rem;
+	padding: 0.15rem 0.55rem;
 	border-radius: 999px;
-	font-size: 0.75rem;
+	font-size: 0.7rem;
 	font-weight: 600;
 	font-family: var(--ifm-font-family-monospace);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
 	color: var(--ifm-color-primary-lighter);
 	background: rgba(51, 88, 255, 0.12);
 }

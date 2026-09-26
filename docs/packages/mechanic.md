@@ -13,7 +13,7 @@ description: "A component-style binder that applies logic to CollectionService-t
 
 </div>
 
-<span className="library-card-meta library-card-meta--deprecated">v4.0.3 · deprecated</span>
+<span className="library-card-meta library-card-meta--deprecated">@4.0.3 · deprecated</span>
 
 :::caution Deprecated
 Superseded by [Binder](./binder.md), which does the same job with more filters and a cleaner API. Existing projects can keep using Mechanic; new ones should start with Binder.
@@ -59,6 +59,10 @@ Wally installs these automatically:
 
 - [`sleitnick/signal@2.0.3`](https://wally.run/package/sleitnick/signal)
 - [`sleitnick/trove@1.5.1`](https://wally.run/package/sleitnick/trove)
+
+## Credits
+
+Trove and Signal are by [sleitnick](https://github.com/Sleitnick) ([RbxUtil](https://sleitnick.github.io/RbxUtil/)).
 
 ## API
 

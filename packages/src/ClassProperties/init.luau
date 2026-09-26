@@ -181,6 +181,8 @@ end
 
 	To see the exact list, read the keys of the returned table in the source file.
 
+	**Credits:** written by KashTheKing. No third-party dependencies.
+
 	Installation and guide: [ClassProperties package page](/docs/packages/class-properties).
 ]=]
 local Classes = {

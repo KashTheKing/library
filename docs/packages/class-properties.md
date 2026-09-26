@@ -13,7 +13,7 @@ description: "Typed constructors for every Roblox class's properties, for type-c
 
 </div>
 
-<span className="library-card-meta">v0.2.0</span>
+<span className="library-card-meta">@0.2.0</span>
 
 **Typed constructors for every Roblox class's properties, for type-checking pseudo-instances.**
 
@@ -49,6 +49,10 @@ local ClassProperties = require(ReplicatedStorage.Packages.ClassProperties)
 ## Dependencies
 
 None. The package is a single module with no dependencies.
+
+## Credits
+
+Written by KashTheKing. No third-party code.
 
 ## API
 

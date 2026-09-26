@@ -13,7 +13,7 @@ description: "A bare-bones store for local (client) settings that fires a Signal
 
 </div>
 
-<span className="library-card-meta library-card-meta--deprecated">v0.1.0 · deprecated</span>
+<span className="library-card-meta library-card-meta--deprecated">@0.1.0 · deprecated</span>
 
 :::caution Deprecated
 No longer maintained. It still works, but it is a bare-bones module and new projects should keep settings in their own state layer.
@@ -56,6 +56,10 @@ local ClientSettings = require(ReplicatedStorage.Packages.ClientSettings)
 Wally installs these automatically:
 
 - [`sleitnick/signal@2.0.3`](https://wally.run/package/sleitnick/signal)
+
+## Credits
+
+Signal is by [sleitnick](https://github.com/Sleitnick) ([RbxUtil](https://sleitnick.github.io/RbxUtil/)).
 
 ## API
 

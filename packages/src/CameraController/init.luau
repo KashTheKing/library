@@ -66,6 +66,8 @@ local PRIORITY = Enum.RenderPriority.Input.Value
 	be started) and create a fresh controller with `new` rather than restarting the same object.
 	:::
 
+	**Credits:** cleanup is handled by [Trove](https://sleitnick.github.io/RbxUtil/api/Trove/), by [sleitnick](https://github.com/Sleitnick) ([sleitnick's RbxUtil](https://sleitnick.github.io/RbxUtil/)). Wally installs it.
+
 	Installation and guide: [CameraController package page](/docs/packages/camera-controller).
 ]=]
 local CameraController = {}

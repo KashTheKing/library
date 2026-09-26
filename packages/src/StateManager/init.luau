@@ -53,6 +53,8 @@
 	Depends on Sleitnick's [Trove](https://sleitnick.github.io/RbxUtil/api/Trove/) and
 	[Signal](https://sleitnick.github.io/RbxUtil/api/Signal/), which Wally installs alongside it.
 
+	**Credits:** [Trove](https://sleitnick.github.io/RbxUtil/api/Trove/) and [Signal](https://sleitnick.github.io/RbxUtil/api/Signal/) are by [sleitnick](https://github.com/Sleitnick) ([sleitnick's RbxUtil](https://sleitnick.github.io/RbxUtil/)). Wally installs both.
+
 	Installation and guide: [StateManager package page](/docs/packages/state-manager).
 ]=]
 

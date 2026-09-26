@@ -13,7 +13,7 @@ description: "Bind a class to instances by tag, class name, ancestor or predicat
 
 </div>
 
-<span className="library-card-meta">v0.6.3</span>
+<span className="library-card-meta">@0.6.3</span>
 
 **Bind a class to instances by tag, class name, ancestor or predicate, and clean up when they leave.**
 
@@ -53,6 +53,10 @@ Wally installs these automatically:
 - [`sleitnick/trove@1.8.0`](https://wally.run/package/sleitnick/trove)
 - [`sleitnick/signal@2.0.3`](https://wally.run/package/sleitnick/signal)
 - [`kashtheking/predicates@0.2.3`](https://wally.run/package/kashtheking/predicates)
+
+## Credits
+
+Trove and Signal are by [sleitnick](https://github.com/Sleitnick) ([RbxUtil](https://sleitnick.github.io/RbxUtil/)). Predicates is my own package.
 
 ## API
 

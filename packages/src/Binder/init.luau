@@ -68,6 +68,8 @@ export type Predicate = Predicates.Predicate
 	so `Binder.Predicates.Attribute(...)`, `Binder.doPredicateWarning` and `Binder.T` are the same
 	values you would get from requiring Predicates directly.
 
+	**Credits:** [Trove](https://sleitnick.github.io/RbxUtil/api/Trove/) and [Signal](https://sleitnick.github.io/RbxUtil/api/Signal/) are by [sleitnick](https://github.com/Sleitnick) ([sleitnick's RbxUtil](https://sleitnick.github.io/RbxUtil/)); the predicate filters come from my own [Predicates](/api/Predicates) package. Wally installs all three.
+
 	Installation and guide: [Binder package page](/docs/packages/binder).
 ]=]
 local Binder = {}

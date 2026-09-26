@@ -71,6 +71,8 @@
 	`t["function"]` = [t.callback], `t["nil"]` = [t.none], and the deprecated `t.exactly` =
 	[t.literal].
 
+	**Credits:** `t` was created by **[Osyris](https://github.com/osyrisrblx)** ([osyrisrblx/t](https://github.com/osyrisrblx/t), MIT). This build is his library published to Wally as `kashtheking/t` with checks for newer Roblox data types added by KashTheKing.
+
 	Installation and guide: [t package page](/docs/packages/t).
 ]=]
 local t = {}

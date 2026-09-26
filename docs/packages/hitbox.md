@@ -13,7 +13,7 @@ description: "Object-oriented hitboxes on GetPartsInPart, with welding, timed sc
 
 </div>
 
-<span className="library-card-meta">v1.0.3</span>
+<span className="library-card-meta">@1.0.3</span>
 
 **Object-oriented hitboxes on `GetPartsInPart`, with welding, timed scans and humanoid filtering.**
 
@@ -52,6 +52,10 @@ Wally installs these automatically:
 
 - [`sleitnick/trove@1.5.1`](https://wally.run/package/sleitnick/trove)
 - [`sleitnick/timer@1.1.2`](https://wally.run/package/sleitnick/timer)
+
+## Credits
+
+Trove and Timer are by [sleitnick](https://github.com/Sleitnick) ([RbxUtil](https://sleitnick.github.io/RbxUtil/)).
 
 ## API
 

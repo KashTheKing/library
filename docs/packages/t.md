@@ -13,11 +13,11 @@ description: "A runtime type checker: build a check once, validate any value wit
 
 </div>
 
-<span className="library-card-meta">v1.0.0</span>
+<span className="library-card-meta">@1.0.0</span>
 
 **A runtime type checker: build a check once, validate any value with a clear error message.**
 
-t is my published build of the classic `t` runtime type checker for Roblox. Every function returns a check `(value) -> (boolean, string?)`, and checks compose: `t.interface`, `t.tuple`, `t.union`, `t.optional`, `t.instanceOf` and dozens more. Use it to validate remote arguments, config tables and DataStore payloads, and to make [Predicates](./predicates.md) type-aware.
+t is Osyris's runtime type checker for Roblox, published to Wally with a few newer data types added. Every function returns a check `(value) -> (boolean, string?)`, and checks compose: `t.interface`, `t.tuple`, `t.union`, `t.optional`, `t.instanceOf` and dozens more. Use it to validate remote arguments, config tables and DataStore payloads, and to make [Predicates](./predicates.md) type-aware.
 
 ## Use it when
 
@@ -49,6 +49,10 @@ local t = require(ReplicatedStorage.Packages.t)
 ## Dependencies
 
 None. The package is a single module with no dependencies.
+
+## Credits
+
+**t was created by [Osyris](https://github.com/osyrisrblx)** ([osyrisrblx/t](https://github.com/osyrisrblx/t), MIT). This is his library published to Wally as `kashtheking/t`, with checks for newer Roblox data types added by KashTheKing.
 
 ## API
 

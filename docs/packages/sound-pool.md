@@ -13,7 +13,7 @@ description: "A pool of positional Sound parts for rapid-fire SFX, such as hits 
 
 </div>
 
-<span className="library-card-meta library-card-meta--deprecated">v0.1.0 · deprecated</span>
+<span className="library-card-meta library-card-meta--deprecated">@0.1.0 · deprecated</span>
 
 :::caution Deprecated
 No longer maintained. It works but has not kept up with Roblox's newer audio API.
@@ -56,6 +56,10 @@ Wally installs these automatically:
 - [`sleitnick/trove@1.8.0`](https://wally.run/package/sleitnick/trove)
 - [`sleitnick/signal@2.0.3`](https://wally.run/package/sleitnick/signal)
 - [`frqstbite/object-pool@1.0.2`](https://wally.run/package/frqstbite/object-pool)
+
+## Credits
+
+Trove and Signal are by [sleitnick](https://github.com/Sleitnick) ([RbxUtil](https://sleitnick.github.io/RbxUtil/)); object-pool is by [frqstbite](https://github.com/frqstbite).
 
 ## API
 

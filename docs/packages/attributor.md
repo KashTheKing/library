@@ -13,7 +13,7 @@ description: "Read and write an instance's attributes as if they were plain prop
 
 </div>
 
-<span className="library-card-meta">v1.0.0</span>
+<span className="library-card-meta">@1.0.0</span>
 
 **Read and write an instance's attributes as if they were plain properties.**
 
@@ -49,6 +49,10 @@ local Attributor = require(ReplicatedStorage.Packages.Attributor)
 ## Dependencies
 
 None. The package is a single module with no dependencies.
+
+## Credits
+
+Written by KashTheKing. No third-party code.
 
 ## API
 

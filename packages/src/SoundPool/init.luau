@@ -72,6 +72,8 @@ SoundPlayback.__index = SoundPlayback
 	[Signal](https://sleitnick.github.io/RbxUtil/api/Signal/) and on frqstbite's
 	[object-pool](https://wally.run/package/frqstbite/object-pool), all installed by Wally.
 
+	**Credits:** [Trove](https://sleitnick.github.io/RbxUtil/api/Trove/) and [Signal](https://sleitnick.github.io/RbxUtil/api/Signal/) are by [sleitnick](https://github.com/Sleitnick) ([sleitnick's RbxUtil](https://sleitnick.github.io/RbxUtil/)); the pooling is [object-pool](https://wally.run/package/frqstbite/object-pool) by [frqstbite](https://github.com/frqstbite). Wally installs all three.
+
 	Installation and guide: [SoundPool package page](/docs/packages/sound-pool).
 ]=]
 local SoundPool = {}

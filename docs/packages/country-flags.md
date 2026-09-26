@@ -13,7 +13,7 @@ description: "Turn a country, region or language code into its flag emoji, and l
 
 </div>
 
-<span className="library-card-meta">v0.1.0</span>
+<span className="library-card-meta">@0.1.0</span>
 
 **Turn a country, region or language code into its flag emoji, and look up a player's region.**
 
@@ -49,6 +49,10 @@ local CountryFlags = require(ReplicatedStorage.Packages.CountryFlags)
 ## Dependencies
 
 None. The package is a single module with no dependencies.
+
+## Credits
+
+Written by KashTheKing. No third-party code.
 
 ## API
 

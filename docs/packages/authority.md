@@ -13,7 +13,7 @@ description: "A server-authoritative state holder that replicates its values thr
 
 </div>
 
-<span className="library-card-meta">v0.2.3</span>
+<span className="library-card-meta">@0.2.3</span>
 
 **A server-authoritative state holder that replicates its values through attributes.**
 
@@ -49,6 +49,10 @@ local Authority = require(ReplicatedStorage.Packages.Authority)
 ## Dependencies
 
 None. The package is a single module with no dependencies.
+
+## Credits
+
+Written by KashTheKing. No third-party code.
 
 ## API
 

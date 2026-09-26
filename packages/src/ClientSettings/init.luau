@@ -36,6 +36,8 @@
 	instead of storing a setting. Depends on Sleitnick's
 	[Signal](https://sleitnick.github.io/RbxUtil/api/Signal/), which Wally installs alongside it.
 
+	**Credits:** the change event is [Signal](https://sleitnick.github.io/RbxUtil/api/Signal/), by [sleitnick](https://github.com/Sleitnick) ([sleitnick's RbxUtil](https://sleitnick.github.io/RbxUtil/)). Wally installs it.
+
 	Installation and guide: [ClientSettings package page](/docs/packages/client-settings).
 ]=]
 local LocalSettings = {

@@ -67,6 +67,8 @@ export type Trove = ExTypes.Trove
 	end
 	```
 
+	**Credits:** [Trove](https://sleitnick.github.io/RbxUtil/api/Trove/) and [Timer](https://sleitnick.github.io/RbxUtil/api/Timer/) are by [sleitnick](https://github.com/Sleitnick) ([sleitnick's RbxUtil](https://sleitnick.github.io/RbxUtil/)). Wally installs both.
+
 	Installation and guide: [Hitbox package page](/docs/packages/hitbox).
 ]=]
 local Hitbox = {}

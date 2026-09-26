@@ -139,6 +139,8 @@ local LanguageMap = {
 	but the [CountryFlags.Flags] and [CountryFlags.LanguageMap] tables themselves are keyed by
 	**upper-case** codes.
 
+	**Credits:** written by KashTheKing. No third-party dependencies.
+
 	Installation and guide: [CountryFlags package page](/docs/packages/country-flags).
 ]=]
 local CountryFlags = {

@@ -13,7 +13,7 @@ description: "An object-oriented camera controller: one update function per came
 
 </div>
 
-<span className="library-card-meta">v1.5.4</span>
+<span className="library-card-meta">@1.5.4</span>
 
 **An object-oriented camera controller: one update function per camera mode, swap modes safely.**
 
@@ -53,6 +53,10 @@ local CameraController = require(ReplicatedStorage.Packages.CameraController)
 Wally installs these automatically:
 
 - [`sleitnick/trove@1.5.1`](https://wally.run/package/sleitnick/trove)
+
+## Credits
+
+Trove is by [sleitnick](https://github.com/Sleitnick) ([RbxUtil](https://sleitnick.github.io/RbxUtil/)).
 
 ## API
 

@@ -13,7 +13,7 @@ description: "Show and hide ScreenGuis with configurable tweens, and manage them
 
 </div>
 
-<span className="library-card-meta">v1.0.1</span>
+<span className="library-card-meta">@1.0.1</span>
 
 :::danger
 Versions before 1.0.1 are broken. Install 1.0.1 or later only.
@@ -58,6 +58,10 @@ Wally installs these automatically:
 
 - [`sleitnick/signal@2.0.3`](https://wally.run/package/sleitnick/signal)
 - [`sleitnick/trove@1.5.1`](https://wally.run/package/sleitnick/trove)
+
+## Credits
+
+Trove and Signal are by [sleitnick](https://github.com/Sleitnick) ([RbxUtil](https://sleitnick.github.io/RbxUtil/)).
 
 ## API
 

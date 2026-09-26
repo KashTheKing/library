@@ -29,6 +29,8 @@
 	be reached through the proxy. Writes are subject to the usual `SetAttribute` rules (attribute
 	names must be valid and values must be attribute-compatible types) and will error otherwise.
 
+	**Credits:** written by KashTheKing. No third-party dependencies.
+
 	Installation and guide: [Attributor package page](/docs/packages/attributor).
 ]=]
 local Attributor = {}
