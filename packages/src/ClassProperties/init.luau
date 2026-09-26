@@ -8,6 +8,181 @@ local function t<T>(instance: T)
 	end 
 end
 
+--[=[
+	@class ClassProperties
+
+	A table of **typed constructors**, one for every Roblox instance class, that lets the Luau type
+	checker validate plain tables which *describe* an instance ("pseudo-instances"). It is useful
+	when you keep instance data as ordinary tables, for example templates, serialised objects,
+	replication payloads or a `Instance.new`-style helper of your own, and you want property
+	names and value types checked at edit time instead of discovering typos at runtime.
+
+	## What an entry is
+
+	`ClassProperties.<ClassName>` is a function of type `(properties: ClassName) -> ClassName`.
+	At runtime it does nothing but return the table you give it; all the value comes from the
+	type annotation. Because the parameter is typed as the real Roblox class, Studio autocompletes
+	the class's properties inside the table literal, and in a `--!strict` script the type checker
+	reports keys that are not properties of that class and values of the wrong type.
+
+	```lua
+	--!strict
+	local ClassProperties = require(path.to.ClassProperties)
+
+	-- A pseudo-instance: a plain table checked against Part's properties.
+	local pseudoPart = ClassProperties.Part({
+		Name = "Crate",
+		Size = Vector3.new(4, 4, 4),
+		Anchored = true,
+		Material = Enum.Material.WoodPlanks,
+		-- Colour = Color3.new()  -- type error: Colour is not a property of Part
+		-- Anchored = "yes"       -- type error: string is not a boolean
+	})
+
+	-- Later, turn the description into a real instance.
+	local function build(className: string, properties: { [string]: any }): Instance
+		local instance = Instance.new(className)
+		for property, value in properties do
+			(instance :: any)[property] = value
+		end
+		return instance
+	end
+
+	local crate = build("Part", pseudoPart :: any)
+	crate.Parent = workspace
+	```
+
+	Every entry is built with the same small local helper, `t<T>(instance: T)`, which captures
+	the class type `T` and returns the identity function typed as `(T) -> T`. There is no runtime
+	table of property names: if you need to enumerate an instance's properties at runtime, use
+	the reflection API dump instead. Indexing a class that is not in the list returns `nil`.
+
+	## Classes covered
+
+	The table mirrors Roblox's class hierarchy at the time of the release (about 620 classes),
+	including abstract base classes (`Instance`, `BasePart`, `GuiObject`, ...) and engine-only
+	classes that cannot be created by scripts but are still valid types. Grouped roughly:
+
+	- **Base and world**: `Object`, `Instance`, `PVInstance`, `Model`, `Actor`, `WorldRoot`,
+	  `Workspace`, `WorldModel`, `Camera`, `Folder`, `Configuration`, `Terrain`, `TerrainDetail`,
+	  `TerrainRegion`, `Tool`, `HopperBin`, `BackpackItem`, `Flag`, `FlagStand`, `Status`.
+	- **Parts**: `BasePart`, `FormFactorPart`, `Part`, `WedgePart`, `CornerWedgePart`, `TrussPart`,
+	  `Seat`, `VehicleSeat`, `SpawnLocation`, `Platform`, `SkateboardPlatform`, `TriangleMeshPart`,
+	  `MeshPart`, `PartOperation`, `UnionOperation`, `NegateOperation`, `IntersectOperation`,
+	  `PartOperationAsset`, `DataModelMesh`, `BevelMesh`, `BlockMesh`, `CylinderMesh`, `FileMesh`,
+	  `SpecialMesh`, `SurfaceAppearance`, `MaterialVariant`, `FaceInstance`, `Decal`, `Texture`.
+	- **Constraints, joints and movers**: `Attachment`, `Bone`, `Constraint` and its subclasses
+	  (`AlignOrientation`, `AlignPosition`, `AngularVelocity`, `AnimationConstraint`,
+	  `BallSocketConstraint`, `HingeConstraint`, `LineForce`, `LinearVelocity`, `PlaneConstraint`,
+	  `Plane`, `RigidConstraint`, `RodConstraint`, `RopeConstraint`, `SlidingBallConstraint`,
+	  `CylindricalConstraint`, `PrismaticConstraint`, `SpringConstraint`, `Torque`,
+	  `TorsionSpringConstraint`, `UniversalConstraint`, `VectorForce`), `WeldConstraint`,
+	  `NoCollisionConstraint`, `JointInstance` and legacy joints (`Weld`, `ManualWeld`, `Motor`,
+	  `Motor6D`, `VelocityMotor`, `Snap`, `Glue`, `ManualGlue`, `Rotate`, `RotateP`, `RotateV`,
+	  `DynamicRotate`, `ManualSurfaceJointInstance`), `BodyMover` and the legacy body movers
+	  (`BodyAngularVelocity`, `BodyForce`, `BodyGyro`, `BodyPosition`, `BodyThrust`, `BodyVelocity`,
+	  `RocketPropulsion`), `Feature`, `Hole`, `MotorFeature`.
+	- **GUI**: `GuiBase`, `GuiBase2d`, `GuiObject`, `Frame`, `CanvasGroup`, `ScrollingFrame`,
+	  `GuiButton`, `TextButton`, `ImageButton`, `GuiLabel`, `TextLabel`, `ImageLabel`, `TextBox`,
+	  `VideoDisplay`, `VideoFrame`, `ViewportFrame`, `LayerCollector`, `ScreenGui`, `GuiMain`,
+	  `BillboardGui`, `SurfaceGuiBase`, `SurfaceGui`, `AdGui`, `PluginGui`, `DockWidgetPluginGui`,
+	  `QWidgetPluginGui`, `Path2D`, and the 3D adornments (`GuiBase3d`, `FloorWire`,
+	  `InstanceAdornment`, `SelectionBox`, `SelectionSphere`, `PVAdornment`, `HandleAdornment`,
+	  `BoxHandleAdornment`, `ConeHandleAdornment`, `CylinderHandleAdornment`, `ImageHandleAdornment`,
+	  `LineHandleAdornment`, `SphereHandleAdornment`, `WireframeHandleAdornment`, `PartAdornment`,
+	  `HandlesBase`, `ArcHandles`, `Handles`, `SurfaceSelection`, `SelectionLasso`,
+	  `SelectionPartLasso`, `SelectionPointLasso`).
+	- **UI modifiers**: `UIBase`, `UIComponent`, `UIConstraint`, `UIAspectRatioConstraint`,
+	  `UISizeConstraint`, `UITextSizeConstraint`, `UICorner`, `UIDragDetector`, `UIFlexItem`,
+	  `UIGradient`, `UILayout`, `UIGridStyleLayout`, `UIGridLayout`, `UIListLayout`, `UIPageLayout`,
+	  `UITableLayout`, `UIPadding`, `UIScale`, `UIStroke`, and styling (`StyleBase`, `StyleRule`,
+	  `StyleSheet`, `StyleDerive`, `StyleLink`).
+	- **Lighting and effects**: `Lighting`, `Atmosphere`, `Sky`, `Clouds`, `Light`, `PointLight`,
+	  `SpotLight`, `SurfaceLight`, `PostEffect`, `BloomEffect`, `BlurEffect`, `ColorCorrectionEffect`,
+	  `ColorGradingEffect`, `DepthOfFieldEffect`, `SunRaysEffect`, `ParticleEmitter`, `Beam`,
+	  `Trail`, `Fire`, `Smoke`, `Sparkles`, `Explosion`, `Highlight`, `ForceField`.
+	- **Audio**: `Sound`, `SoundGroup`, `SoundService`, `SoundEffect` and its subclasses
+	  (`ChorusSoundEffect`, `CompressorSoundEffect`, `DistortionSoundEffect`, `EchoSoundEffect`,
+	  `EqualizerSoundEffect`, `FlangeSoundEffect`, `PitchShiftSoundEffect`, `ReverbSoundEffect`,
+	  `TremoloSoundEffect`), and the audio graph API (`AudioPlayer`, `AudioEmitter`, `AudioListener`,
+	  `AudioDeviceInput`, `AudioDeviceOutput`, `AudioAnalyzer`, `AudioChannelMixer`,
+	  `AudioChannelSplitter`, `AudioChorus`, `AudioCompressor`, `AudioDistortion`, `AudioEcho`,
+	  `AudioEqualizer`, `AudioFader`, `AudioFilter`, `AudioFlanger`, `AudioGate`, `AudioLimiter`,
+	  `AudioPitchShifter`, `AudioRecorder`, `AudioReverb`, `AudioSearchParams`, `AudioSpeechToText`,
+	  `AudioTextToSpeech`, `Wire`).
+	- **Characters and animation**: `Humanoid`, `HumanoidDescription`, `HumanoidRigDescription`,
+	  `HandRigDescription`, `Animation`, `AnimationClip`, `CurveAnimation`, `KeyframeSequence`,
+	  `Keyframe`, `KeyframeMarker`, `PoseBase`, `Pose`, `NumberPose`, `AnimationController`,
+	  `Animator`, `AnimationTrack`, `AnimationRigData`, `FloatCurve`, `RotationCurve`,
+	  `EulerRotationCurve`, `Vector3Curve`, `MarkerCurve`, `IKControl`, `FaceControls`,
+	  `CharacterAppearance`, `Accoutrement`, `Accessory`, `Hat`, `AccessoryDescription`,
+	  `BodyPartDescription`, `BodyColors`, `CharacterMesh`, `Clothing`, `Shirt`, `Pants`,
+	  `ShirtGraphic`, `Skin`, `BaseWrap`, `WrapDeformer`, `WrapLayer`, `WrapTarget`, and the
+	  character controller API (`ControllerManager`, `ControllerBase`, `AirController`,
+	  `ClimbController`, `GroundController`, `SwimController`, `SensorBase`, `AtmosphereSensor`,
+	  `BuoyancySensor`, `ControllerSensor`, `ControllerPartSensor`, `FluidForceSensor`,
+	  `Controller`, `HumanoidController`, `SkateboardController`, `VehicleController`).
+	- **Scripts, events and values**: `LuaSourceContainer`, `BaseScript`, `Script`, `LocalScript`,
+	  `ModuleScript`, `BaseRemoteEvent`, `RemoteEvent`, `UnreliableRemoteEvent`, `RemoteFunction`,
+	  `BindableEvent`, `BindableFunction`, `CustomEvent`, `CustomEventReceiver`, `ValueBase` and its
+	  subclasses (`BoolValue`, `IntValue`, `NumberValue`, `StringValue`, `ObjectValue`, `CFrameValue`,
+	  `Color3Value`, `BrickColorValue`, `RayValue`, `Vector3Value`, `IntConstrainedValue`,
+	  `DoubleConstrainedValue`, `BinaryStringValue`).
+	- **Input and interaction**: `ClickDetector`, `DragDetector`, `ProximityPrompt`, `Dialog`,
+	  `DialogChoice`, `InputObject`, `InputAction`, `InputBinding`, `InputContext`, `Mouse`,
+	  `PlayerMouse`, `PluginMouse`, `HapticEffect`, `TouchTransmitter`.
+	- **Players and teams**: `Player`, `Players`, `PlayerGui`, `PlayerScripts`, `Backpack`,
+	  `StarterGear`, `StarterPack`, `StarterPlayer`, `StarterPlayerScripts`,
+	  `StarterCharacterScripts`, `StarterGui`, `Team`, `Teams`, `Message`, `Hint`.
+	- **Text chat**: `TextChatService`, `TextChannel`, `TextChatCommand`, `TextChatMessage`,
+	  `TextChatMessageProperties`, `BubbleChatMessageProperties`, `ChatWindowMessageProperties`,
+	  `TextChatConfigurations`, `BubbleChatConfiguration`, `ChannelTabsConfiguration`,
+	  `ChatInputBarConfiguration`, `ChatWindowConfiguration`, `TextSource`, `TextFilterResult`,
+	  `TextFilterTranslatedResult`, `Chat`.
+	- **Data and paging**: `GlobalDataStore`, `DataStore`, `OrderedDataStore`, `DataStoreService`,
+	  `DataStoreOptions`, `DataStoreGetOptions`, `DataStoreSetOptions`, `DataStoreIncrementOptions`,
+	  `DataStoreInfo`, `DataStoreKey`, `DataStoreKeyInfo`, `DataStoreObjectVersionInfo`,
+	  `MemoryStoreService`, `MemoryStoreHashMap`, `MemoryStoreQueue`, `MemoryStoreSortedMap`,
+	  `Pages` and its subclasses (`AudioPages`, `BanHistoryPages`, `CatalogPages`, `DataStoreKeyPages`,
+	  `DataStoreListingPages`, `DataStorePages`, `DataStoreVersionPages`, `FriendPages`,
+	  `InventoryPages`, `EmotesPages`, `MemoryStoreHashMapPages`, `OutfitPages`,
+	  `RecommendationPages`, `StandardPages`).
+	- **Pathfinding, tweening, localisation, teleport**: `Path`, `PathfindingLink`,
+	  `PathfindingModifier`, `PathfindingService`, `TweenBase`, `Tween`, `TweenService`,
+	  `LocalizationService`, `LocalizationTable`, `Translator`, `TeleportService`, `TeleportOptions`,
+	  `TeleportAsyncResult`, `ExperienceInviteOptions`, `GetTextBoundsParams`.
+	- **Services**: every `game:GetService` class present in the API dump, e.g. `AdService`,
+	  `AnalyticsService`, `AssetService`, `AvatarEditorService`, `BadgeService`, `CollectionService`,
+	  `ContentProvider`, `ContextActionService`, `Debris`, `GamePassService`, `GroupService`,
+	  `GuiService`, `HapticService`, `HttpService`, `InsertService`, `LogService`,
+	  `MarketplaceService`, `MessagingService`, `PhysicsService`, `PolicyService`,
+	  `ProximityPromptService`, `ReplicatedFirst`, `ReplicatedStorage`, `RunService`,
+	  `ServerScriptService`, `ServerStorage`, `SocialService`, `TextService`, `UserInputService`,
+	  `UserService`, `VoiceChatService`, `VRService`, `ServiceProvider`, `DataModel`, and the
+	  settings singletons (`GenericSettings`, `GlobalSettings`, `UserSettings`, `UserGameSettings`,
+	  `GameSettings`, `DebugSettings`, `LuaSettings`, `NetworkSettings`, `PhysicsSettings`,
+	  `RenderSettings`, `Studio`).
+	- **Plugins and Studio**: `Plugin`, `PluginAction`, `PluginCapabilities`, `PluginDragEvent`,
+	  `PluginMenu`, `PluginToolbar`, `PluginToolbarButton`, `PluginGuiService`, `PluginManager`,
+	  `Selection`, `ChangeHistoryService`, `ScriptEditorService`, `ScriptDocument`, `StudioService`,
+	  `StudioTheme`, `Dragger`, `AdvancedDragger`, `Annotation`, `WorkspaceAnnotation`,
+	  `PackageLink`, `TestService`, `FunctionalTest`, `RenderingTest`, `File`.
+	- **Capture, video and editable assets**: `Capture`, `ScreenshotCapture`, `VideoCapture`,
+	  `CaptureService`, `ScreenshotHud`, `VideoPlayer`, `VideoService`, `VideoCaptureService`,
+	  `EditableImage`, `EditableMesh`, `ConfigSnapshot`.
+	- **Engine-internal and reflection**: `ReflectionMetadata*`, `NetworkPeer`, `NetworkClient`,
+	  `NetworkServer`, `NetworkReplicator`, `ClientReplicator`, `ServerReplicator`, `NetworkMarker`,
+	  `Stats`, `StatsItem` and the running-average items, `Visit`, `VirtualUser`,
+	  `VirtualInputManager`, `Geometry`, `TaskScheduler`, `ScriptContext`, `Hopper`,
+	  `TerrainIterateOperation`, `TerrainModifyOperation`, `TerrainReadOperation`,
+	  `TerrainWriteOperation`, `MLSession`, and the various `*Service` helpers Roblox uses
+	  internally. These are included so that every class type resolves, but scripts cannot
+	  create them.
+
+	To see the exact list, read the keys of the returned table in the source file.
+
+	Installation and guide: [ClassProperties package page](/docs/packages/class-properties).
+]=]
 local Classes = {
 	Object = t(a::Object),
 	Capture = t(a::Capture),
