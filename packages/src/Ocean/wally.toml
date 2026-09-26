@@ -1,0 +1,10 @@
+[package]
+name = "kashtheking/ocean"
+version = "1.0.2"
+description = "Infinite Ocean module: an infinite Gerstner-wave sea on EditableMesh, synced server and client, with weather, zones, obstacles, dry regions, water queries and events."
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+license = "MIT"
+authors = ["KashTheKing"]
+
+[dependencies]
