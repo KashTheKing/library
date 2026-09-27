@@ -46,6 +46,7 @@ local Weather = require(script.Parent.Weather)
 local Waves = {}
 
 local N = Settings.WAVE_COUNT
+local CELL_SCALE = { Fast = 2, Regular = 1.25, Realistic = 1 } -- the renderer's cell scale per Quality
 
 export type Set = {
 	Name: string,
@@ -56,6 +57,7 @@ export type Set = {
 	Kz: { number },
 	Omega: { number },
 	Amp: { number },
+	Phys: { number }, -- amplitude the physics uses: Amp, less what the mesh is too coarse to draw
 	MaxAmp: number, -- tallest possible crest (all waves in phase)
 	Look: { [string]: any }, -- the non-wave weather settings, resolved
 }
@@ -83,6 +85,7 @@ local function buildSet(name: string): Set
 		Kz = table.create(N, 0),
 		Omega = table.create(N, 0),
 		Amp = table.create(N, 0),
+		Phys = table.create(N, 0),
 		MaxAmp = 0,
 		Look = look,
 	}
@@ -98,6 +101,10 @@ local function buildSet(name: string): Set
 	-- WaveHeight scales the whole wave field: wavelength as well as amplitude, so a giant sea keeps
 	-- the same steepness and the crests never fold over (Gerstner loops appear past steepness 1).
 	local scale = math.max(look.WaveHeight, 1e-3)
+	-- The finest cell the mesh has (CellSize x the quality's scale). A wave shorter than three cells
+	-- cannot be drawn and fades in up to six; heights, buoyancy and swimming use the same fade, so
+	-- things float on the water you see and not on chop the mesh never shows.
+	local cell = Settings.Get("CellSize") * (CELL_SCALE[Settings.Get("Quality")] or 1)
 	for i = 1, N do
 		local angle = math.rad(look[`Wave{i}Angle`]) + windAngle
 		local length = look[`Wave{i}Length`] * scale
@@ -108,6 +115,7 @@ local function buildSet(name: string): Set
 		set.Kx[i], set.Kz[i] = k * dx, k * dz
 		set.Omega[i] = math.sqrt(g * k) -- deep-water dispersion
 		set.Amp[i] = look[`Wave{i}Steepness`] / k
+		set.Phys[i] = set.Amp[i] * math.clamp(length / (3 * cell) - 1, 0, 1)
 		set.MaxAmp += set.Amp[i]
 	end
 	set.MaxAmp = math.max(set.MaxAmp, 1e-3)
@@ -427,7 +435,7 @@ end
 
 local function displaceSet(set: Set, x: number, z: number, t: number): (number, number, number)
 	local ox, oy, oz = 0, 0, 0
-	local kx, kz, omega, amp, dirX, dirZ = set.Kx, set.Kz, set.Omega, set.Amp, set.DirX, set.DirZ
+	local kx, kz, omega, amp, dirX, dirZ = set.Kx, set.Kz, set.Omega, set.Phys, set.DirX, set.DirZ
 	for i = 1, N do
 		local f = kx[i] * x + kz[i] * z - omega[i] * t
 		local a = amp[i]
