@@ -896,11 +896,22 @@ end
 
 local warnedNoMesh = false
 
--- The flat fallback: one plain part in the water's colour, stretched to the horizon by a
--- BlockMesh, following the camera. No EditableMesh, so any device can hold it.
+-- The flat water. With FlatSea on it is the sea itself; with the dynamic sea it only stands in
+-- while the wave mesh cannot be drawn. It is the flat water slab saved with the place when there
+-- is one, otherwise one plain part in the water's colour, stretched to the horizon by a BlockMesh
+-- and following the camera. No EditableMesh either way, so any device can hold it.
 local flatPart: Part? = nil
 
 local function showFlat()
+	showPlaceholders()
+	Waves.SetLocalFlat(true)
+	if #CollectionService:GetTagged(PLACEHOLDER_TAG) > 0 then
+		if flatPart then
+			flatPart:Destroy()
+			flatPart = nil
+		end
+		return -- the place's own flat water is the surface
+	end
 	local part = flatPart
 	if not (part and part.Parent) then
 		local made = Instance.new("Part")
@@ -925,14 +936,15 @@ local function showFlat()
 	part.Material = material
 	part.MaterialVariant = variant
 	part.Reflectance = Settings.Get("Reflectance")
-	Waves.SetLocalFlat(true)
 end
 
+-- The wave mesh is on screen: the flat water steps aside.
 local function hideFlat()
 	if flatPart then
 		flatPart:Destroy()
 		flatPart = nil
 	end
+	hidePlaceholders()
 	Waves.SetLocalFlat(false)
 end
 
@@ -960,9 +972,16 @@ local function build()
 	buildToken += 1
 	local token = buildToken
 
-	hidePlaceholders()
+	if Settings.Get("FlatSea") == true then
+		-- a flat sea is the flat water itself: no wave mesh to build
+		destroyMesh()
+		showFlat()
+		budgetLevel = 0
+		nextClimb = math.huge
+		return
+	end
 	if not Waves.MeshAvailable() then
-		-- no wave mesh without EditableMesh access: the flat slab is the sea, for good
+		-- no wave mesh without EditableMesh access: the flat water is the sea, for good
 		destroyMesh()
 		showFlat()
 		nextClimb = math.huge
@@ -1479,15 +1498,17 @@ function Renderer.Init(into: Instance?)
 	parent = into or workspace.Terrain -- the game's sea lives under Terrain; the preview under the Camera
 	-- with streaming the placeholder slab can arrive after us: hide it whenever it shows up
 	placeholderAdded = CollectionService:GetInstanceAddedSignal(PLACEHOLDER_TAG):Connect(function()
-		if Waves.MeshAvailable() then
-			hidePlaceholders()
+		if container then
+			hidePlaceholders() -- the wave mesh is the sea: the flat water stands aside
+		elseif flatPart or Settings.Get("FlatSea") == true then
+			showFlat() -- the flat water is the sea: the place's own slab takes over
 		end
 	end)
 	connection = Settings.OnChanged(function(name)
 		local entry = Settings.Spec[name]
-		if entry and entry.Rebuild then
+		if (entry and entry.Rebuild) or name == "FlatSea" then
 			task.spawn(build)
-		elseif name == "StaticWaves" or name == "FlatSea" or name == "DynamicColors" or name == "DynamicLighting" then
+		elseif name == "StaticWaves" or name == "DynamicColors" or name == "DynamicLighting" then
 			staticDone, coloredOnce = false, false
 		elseif
 			name == "Reflectance"

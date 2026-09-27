@@ -77,10 +77,10 @@ Settings.List = {
 		Name = "FlatSea",
 		Default = false,
 		Section = "General Physics",
-		Hint = "No waves at all: the surface lies flat at SeaLevel with the same look (colours, film, foam style, tint). Buoyancy, swimming and water events work on that flat surface",
+		Hint = "No waves at all: the sea is the flat water at SeaLevel, in the water's colour and material, with the underwater tint. Buoyancy, swimming and water events work on that flat surface",
 	},
 	num("SeafloorHeight", -436, -10000, 10000, 1, "General Physics", {
-		Hint = "World Y of the seafloor slab the plugin places (Placeholders). Kept under the deepest wave trough and that much above the fallen-parts height",
+		Hint = "World Y of the seafloor slab the plugin places (Flat Water and Seafloor). Kept under the deepest wave trough and that much above the fallen-parts height",
 	}),
 	num("WaveGravity", 60, 5, 2000, 1, "Wave Physics", { Weather = true, Hint = "Wave speed: higher is faster" }),
 	num("WaveHeight", 1, 0, 12, 0.05, "Wave Physics", {
