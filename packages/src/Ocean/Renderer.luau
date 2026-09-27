@@ -92,6 +92,31 @@ local BEHIND_EVERY = 4 -- behind-camera vertices update every Nth frame (they st
 -- bones cost ~0.7 us each per frame whether or not they moved, and past ~4k a mesh
 -- gets pathological; the outermost animated vertices (long swells 400+ studs out) lose theirs first.
 local MAX_BONES = 2500
+
+-- Adaptive quality. A device's EditableMesh memory budget (tight on phones, generous in Studio)
+-- decides how much of the sea it can hold, and its frame time decides how much it can animate.
+-- `budgetLevel` is the rung being shown: 0 is everything the settings ask for, each rung drops
+-- something, and the last is no mesh at all, a flat slab.
+--   0 full | 1 no film | 2 no foam | 3 one tile | 4 one tile, half the lattice
+--   5 one tile, a quarter of the lattice | 6 flat, no EditableMesh
+-- When a build is refused the sea falls to the flat slab at once, then climbs a rung at a time
+-- from the bottom. A refused climb doubles the wait before the next try; a slow frame time steps
+-- down a rung. So it settles on the best rung the device holds, and keeps probing upward slowly.
+local FLAT_LEVEL = 6
+local LEVEL_NAMES = { [0] = "full", "no film", "no foam", "one tile", "half lattice", "quarter lattice", "flat" }
+local CLIMB_FIRST = 2 -- s after falling to flat before the first rung is tried
+local CLIMB_MIN, CLIMB_MAX = 6, 180 -- s between climbs: grows when one is refused
+local SLOW_MS = 7 -- a mesh update costing more than this for SLOW_FOR seconds steps down a rung
+local SLOW_FOR = 3
+local budgetLevel = 0
+local climbDelay = CLIMB_MIN
+local nextClimb = math.huge -- os.clock() of the next attempt at a better rung
+local slowSince: number? = nil
+local building = false
+
+local function boneBudget(): number
+	return if budgetLevel >= 5 then 300 elseif budgetLevel >= 4 then 900 elseif budgetLevel >= 3 then 1600 else MAX_BONES
+end
 local BLOCK = 32 -- lattice cells per tile side: the camera sits at a block corner, so the bone disc is 4 tiles
 
 -- Quality tiers, applied on top of the Advanced mesh settings. Bone count (= animated vertices)
@@ -219,6 +244,14 @@ local function applyQuality()
 		qInner += 1 -- the foam lattice is every other fine vertex: keep the inner area an even number of cells
 	end
 	qOuter = math.clamp(outer, 1, MAX_CELLS_PER_SIDE - qInner)
+	if budgetLevel >= 4 then
+		-- the same reach with a half (or a quarter) of the cells per side: a fourth (a sixteenth) of the mesh
+		local shrink = if budgetLevel >= 5 then 4 else 2
+		-- coarser cells, but never so coarse that the longest wave stops moving the mesh
+		qCell = math.min(qCell * shrink, math.max(qCell, Waves.MaxLength / 6))
+		qInner = math.max(2, (qInner // shrink) // 2 * 2)
+		qOuter = math.max(1, qOuter // shrink)
+	end
 	tile = qCell * TILE_CELLS
 	snap = tile
 	SurfaceTexture.SetSmooth(quality.SmoothFoam)
@@ -474,14 +507,13 @@ end
 
 -- The block a lattice CELL (1 .. n - 1, spanning vertices c .. c + 1) belongs to. The centre
 -- vertex m is a block corner, so the bone disc around the camera is split in four.
--- `budgetLevel` rises when the client's EditableMesh budget refuses the meshes: 1 = no film,
--- 2 = no foam either, 3 = one tile for everything.
-local budgetLevel = 0
 local pendingMeshes: { EditableMesh } = {} -- created by the build in progress, destroyed if it fails
 
 local function blockOf(c: number, m: number): number
-	local size = if budgetLevel >= 3 then 4 * MAX_CELLS_PER_SIDE else BLOCK
-	return (c - m) // size
+	if budgetLevel >= 3 then
+		return 0 -- one tile for the whole lattice
+	end
+	return (c - m) // BLOCK
 end
 
 -- A mesh over a set of lattice cells: UVs tiled in world studs, an optional colour per vertex, and
@@ -611,7 +643,7 @@ local function buildOnce(token: number)
 	for _, L in byDistance do
 		local xi, zi = (L - 1) % n + 1, (L - 1) // n + 1
 		local cost = (if onBorder(xi) then 2 else 1) * (if onBorder(zi) then 2 else 1)
-		if spent + cost > MAX_BONES then
+		if spent + cost > boneBudget() then
 			break
 		end
 		spent += cost
@@ -864,13 +896,76 @@ end
 
 local warnedNoMesh = false
 
+-- The flat fallback: one plain part in the water's colour, stretched to the horizon by a
+-- BlockMesh, following the camera. No EditableMesh, so any device can hold it.
+local flatPart: Part? = nil
+
+local function showFlat()
+	local part = flatPart
+	if not (part and part.Parent) then
+		local made = Instance.new("Part")
+		made.Name = "OceanFlat"
+		made.Size = Vector3.new(2048, 1, 2048)
+		made.Anchored = true
+		made.Locked = true
+		made.CanCollide, made.CanQuery, made.CanTouch = false, false, false
+		made.CastShadow = false
+		made.Archivable = false
+		made.TopSurface = Enum.SurfaceType.Smooth
+		local mesh = Instance.new("BlockMesh")
+		mesh.Scale = Vector3.new(100, 1, 100)
+		mesh.Parent = made
+		made.Parent = parent
+		flatPart = made
+		part = made
+	end
+	local material, variant = materialFor(Settings.Get("WaterMaterial"))
+	local deep, shallow = Settings.Get("DeepColor"), Settings.Get("ShallowColor")
+	part.Color = deep:Lerp(shallow, 0.5)
+	part.Material = material
+	part.MaterialVariant = variant
+	part.Reflectance = Settings.Get("Reflectance")
+	Waves.SetLocalFlat(true)
+end
+
+local function hideFlat()
+	if flatPart then
+		flatPart:Destroy()
+		flatPart = nil
+	end
+	Waves.SetLocalFlat(false)
+end
+
+local function note(level: number)
+	Renderer.Stats.Level = level
+	if container then
+		container:SetAttribute("Level", LEVEL_NAMES[level])
+	end
+end
+
+-- One attempt at `budgetLevel`. A refused build leaves whatever is on screen untouched.
+local function attempt(token: number): (boolean, string?)
+	table.clear(pendingMeshes)
+	local ok, err = pcall(buildOnce, token)
+	if not ok then
+		for _, em in pendingMeshes do
+			em:Destroy()
+		end
+	end
+	table.clear(pendingMeshes) -- owned by the sea on success
+	return ok, if ok then nil else tostring(err)
+end
+
 local function build()
 	buildToken += 1
 	local token = buildToken
 
+	hidePlaceholders()
 	if not Waves.MeshAvailable() then
-		-- no wave mesh without EditableMesh access: the flat water slab stays as the sea
-		showPlaceholders()
+		-- no wave mesh without EditableMesh access: the flat slab is the sea, for good
+		destroyMesh()
+		showFlat()
+		nextClimb = math.huge
 		if not warnedNoMesh then
 			warnedNoMesh = true
 			warn(
@@ -879,25 +974,71 @@ local function build()
 		end
 		return
 	end
-	hidePlaceholders()
-	while true do
-		table.clear(pendingMeshes)
-		local ok, err = pcall(buildOnce, token)
-		if ok then
-			table.clear(pendingMeshes) -- owned now
-			return
-		end
-		for _, em in pendingMeshes do
-			em:Destroy()
-		end
-		table.clear(pendingMeshes)
-		if budgetLevel >= 3 then -- already down to one tile and nothing else
-			warn(`[Ocean] the sea could not be built: {err}`)
-			return
-		end
-		budgetLevel += 1
-		warn(`[Ocean] {err}: retrying with fewer meshes (level {budgetLevel}: no film, no foam, one tile)`)
+	if budgetLevel >= FLAT_LEVEL then
+		return -- on the flat fallback: the climb brings the mesh back
 	end
+	building = true
+	local ok, err = attempt(token)
+	building = false
+	if token ~= buildToken then
+		return
+	end
+	if ok then
+		hideFlat()
+		note(budgetLevel)
+		slowSince = nil
+		nextClimb = if budgetLevel > 0 then os.clock() + climbDelay else math.huge
+		return
+	end
+	-- refused (the device's EditableMesh budget, most likely): flat now, climb from the bottom
+	warn(
+		`[Ocean] the sea could not be built at "{LEVEL_NAMES[budgetLevel]}" ({err}): flat for now, retrying from the lowest quality`
+	)
+	destroyMesh()
+	budgetLevel = FLAT_LEVEL
+	showFlat()
+	note(budgetLevel)
+	climbDelay = CLIMB_MIN
+	nextClimb = os.clock() + CLIMB_FIRST
+end
+
+-- Try the next better rung. Refused: stay where we are and wait twice as long before asking again.
+local function climb()
+	if building or not running or budgetLevel <= 0 then
+		return
+	end
+	buildToken += 1
+	local token = buildToken
+	local shown = budgetLevel
+	budgetLevel = shown - 1
+	building = true
+	local ok = attempt(token)
+	building = false
+	if token ~= buildToken then
+		return
+	end
+	if ok then
+		hideFlat()
+		note(budgetLevel)
+		slowSince = nil
+		climbDelay = math.max(CLIMB_MIN, climbDelay * 0.75)
+		nextClimb = if budgetLevel > 0 then os.clock() + climbDelay else math.huge
+	else
+		budgetLevel = shown
+		applyQuality() -- the lattice numbers belong to the rung on screen again
+		climbDelay = math.min(climbDelay * 2, CLIMB_MAX)
+		nextClimb = os.clock() + climbDelay
+	end
+end
+
+-- The mesh costs too much frame time on this device: one rung down, and no climbing for a while.
+local function stepDown()
+	if building or budgetLevel >= FLAT_LEVEL - 1 then
+		return
+	end
+	budgetLevel += 1
+	climbDelay = math.min(math.max(climbDelay * 2, 20), CLIMB_MAX)
+	task.spawn(build)
 end
 
 -- Recompute the per-vertex static fields for the mesh centred at (ox, oz): obstacle damping,
@@ -1111,6 +1252,14 @@ local function update()
 	local period = 1 / Settings.Get("UpdateRate")
 	nextUpdate = math.max(nextUpdate + period, started - period)
 	applyTint(camera.CFrame.Position)
+	if flatPart then
+		local focus = camera.CFrame.Position
+		flatPart.CFrame = CFrame.new(math.round(focus.X / 64) * 64, Waves.SeaLevel - 0.5, math.round(focus.Z / 64) * 64)
+	end
+	if started >= nextClimb and not building then
+		nextClimb = math.huge -- climb sets the next one
+		task.spawn(climb)
+	end
 	if not model then
 		return
 	end
@@ -1298,6 +1447,15 @@ local function update()
 		end
 	end
 	Renderer.Stats.UpdateMs = (os.clock() - started) * 1000
+	if Renderer.Stats.UpdateMs > SLOW_MS then
+		slowSince = slowSince or started
+		if started - slowSince > SLOW_FOR then
+			slowSince = nil
+			stepDown()
+		end
+	else
+		slowSince = nil
+	end
 	if Renderer.Stats.UpdateMs > 20 then -- a hitch: count it where the Properties panel can see it
 		Renderer.Stats.Hitches += 1
 		model:SetAttribute("Hitches", Renderer.Stats.Hitches)
@@ -1352,6 +1510,25 @@ function Renderer.Init(into: Instance?)
 	RunService:BindToRenderStep(BIND_NAME, Enum.RenderPriority.Camera.Value + 1, update)
 end
 
+-- Puts the sea on a rung of the quality ladder (0 = full ... 6 = flat), as if the device had
+-- forced it there; it climbs back up from that rung on its own. For testing low-end behaviour.
+function Renderer.SetLevel(level: number)
+	if not running then
+		return
+	end
+	budgetLevel = math.clamp(math.floor(level), 0, FLAT_LEVEL)
+	climbDelay = CLIMB_MIN
+	if budgetLevel >= FLAT_LEVEL then
+		buildToken += 1
+		destroyMesh()
+		showFlat()
+		note(budgetLevel)
+		nextClimb = os.clock() + CLIMB_FIRST
+	else
+		task.spawn(build)
+	end
+end
+
 function Renderer.Stop()
 	if not running then
 		return
@@ -1369,7 +1546,9 @@ function Renderer.Stop()
 		placeholderAdded = nil
 	end
 	destroyMesh()
+	hideFlat()
 	budgetLevel = 0
+	climbDelay, nextClimb, slowSince, building = CLIMB_MIN, math.huge, nil, false
 	if tintFrame then
 		local gui = tintFrame.Parent
 		if gui then

@@ -133,6 +133,22 @@ function Waves.MeshAvailable(): boolean
 end
 
 local flat = false -- FlatSea (or no EditableMesh access): no displacement anywhere, the surface is SeaLevel
+local localFlat = false -- this client is drawing the flat fallback: its own queries are flat too
+
+--[=[
+	@within Waves
+	@client
+	Makes this client's sea flat (heights, swimming and the tint follow the flat surface it is
+	drawing) without touching the setting. The renderer turns it on while a device cannot hold the
+	wave mesh and off again once it can.
+	@param on boolean
+]=]
+function Waves.SetLocalFlat(on: boolean)
+	if localFlat ~= on then
+		localFlat = on
+		Waves.Refresh()
+	end
+end
 local frozen = false -- StaticWaves: the wave clock holds, so the surface never moves
 
 --[=[
@@ -142,7 +158,7 @@ local frozen = false -- StaticWaves: the wave clock holds, so the surface never 
 ]=]
 function Waves.Refresh()
 	Weather.Decode()
-	flat = Settings.Get("FlatSea") == true or not Waves.MeshAvailable()
+	flat = Settings.Get("FlatSea") == true or localFlat or not Waves.MeshAvailable()
 	frozen = Settings.Get("StaticWaves") == true
 	table.clear(Waves.Sets)
 	Waves.MaxLength = 1
