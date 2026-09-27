@@ -1150,6 +1150,10 @@ end
 -- Edit-mode preview, which Team Create never syncs), driven from the Underwater* settings so
 -- zones, weathers and presets can vary it, alive with or without a wave mesh.
 local tintFrame: Frame? = nil
+-- The camera's near plane sits a little ahead of and below its position: the tint comes on this
+-- far above the water line, so the view never shows the underside of the surface untinted.
+local TINT_MARGIN = 0.6
+local surfaceAt: (x: number, z: number) -> number -- the drawn surface; defined below the wave sum
 
 local function tintHome(): Instance?
 	if parent:IsA("Camera") then
@@ -1181,7 +1185,7 @@ local function applyTint(focus: Vector3)
 		tintFrame = tint
 	end
 	local under = Settings.Get("UnderwaterEnabled")
-		and focus.Y < Waves.Height(focus.X, focus.Z)
+		and focus.Y < surfaceAt(focus.X, focus.Z) + TINT_MARGIN
 		and not Regions.IsDry(focus)
 	if tint.Visible ~= under then
 		tint.Visible = under
@@ -1255,6 +1259,31 @@ local function waveAt(wx: number, wz: number, inv: number, t: number): (number, 
 		end
 	end
 	return dx, dy, dz
+end
+
+-- World Y of the surface as this client draws it at (x, z): the wave sum of the mesh on screen
+-- (its rung, its finest cell, the weather layers here, obstacles), inverted like Waves.Height so
+-- the sideways shove of the waves is accounted for. Sea level on the flat water.
+function surfaceAt(x: number, z: number): number
+	if not container or flatSea then
+		return Waves.SeaLevel
+	end
+	local now = workspace:GetServerTimeNow()
+	local t = Waves.Time()
+	local inv = 1 / (3 * lodCell)
+	local zones = Waves.ZonesNear(x, z, 1)
+	local obstacles = Waves.ObstaclesNear(x, z, 1)
+	local damp = if #obstacles > 0 then Waves.Damp(obstacles, x, z) else 1
+	local savedCount, savedZones, savedNow, savedLoaded = gCount, gZones, gNow, gGlobalLoaded
+	gZones, gNow = zones, now
+	gCount = Waves.Gather(zones, x, z, now)
+	local px, pz, y = x, z, 0
+	for _ = 1, 3 do
+		local dx, dy, dz = waveAt(px, pz, inv, t)
+		px, pz, y = x - dx * damp, z - dz * damp, dy * damp
+	end
+	gCount, gZones, gNow, gGlobalLoaded = savedCount, savedZones, savedNow, savedLoaded
+	return Waves.SeaLevel + y
 end
 
 local function update()

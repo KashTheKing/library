@@ -175,7 +175,7 @@ Settings.List = {
 		Weather = true,
 		Hint = "Underwater tint colour",
 	},
-	num("UnderwaterOpacity", 0.6, 0, 1, 0.01, "Visuals", {
+	num("UnderwaterOpacity", 1, 0, 1, 0.01, "Visuals", {
 		Weather = true,
 		Hint = "How strongly the underwater tint covers the view (0 = none)",
 	}),
