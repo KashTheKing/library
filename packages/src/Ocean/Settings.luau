@@ -141,14 +141,14 @@ Settings.List = {
 	},
 	{
 		Name = "ShallowColor",
-		Default = Color3.fromRGB(20, 110, 160),
+		Default = Color3.fromRGB(18, 98, 108),
 		Section = "Visuals",
 		Weather = true,
 		Hint = "Crests",
 	},
 	{
 		Name = "DeepColor",
-		Default = Color3.fromRGB(12, 84, 131),
+		Default = Color3.fromRGB(12, 84, 92),
 		Section = "Visuals",
 		Weather = true,
 		Hint = "Troughs",
@@ -170,34 +170,53 @@ Settings.List = {
 	},
 	{
 		Name = "UnderwaterTint",
-		Default = Color3.fromRGB(12, 84, 131),
+		Default = Color3.fromRGB(12, 84, 92),
 		Section = "Visuals",
 		Weather = true,
 		Hint = "Underwater tint colour",
 	},
-	num("UnderwaterOpacity", 1, 0, 1, 0.01, "Visuals", {
+	num("UnderwaterOpacity", 0.75, 0, 1, 0.01, "Visuals", {
 		Weather = true,
 		Hint = "How strongly the underwater tint covers the view (0 = none)",
 	}),
-	num("Reflectance", 0.05, 0, 1, 0.01, "Visuals", { Hint = "How much of the sky the surface mirrors" }),
+	num("Reflectance", 0.15, 0, 1, 0.01, "Visuals", { Hint = "How much of the sky the surface mirrors" }),
+	num("WaterTransparency", 0, 0, 1, 0.01, "Visuals", {
+		Hint = "How see-through the water surface is: 0 = opaque, 1 = invisible",
+	}),
+	num("WaveShading", 1, 0, 2, 0.05, "Visuals", {
+		Hint = "How strongly the waves' slopes catch the light: faces toward the sun brighten, the far sides darken (0 = lit like a flat sheet)",
+	}),
+	{
+		Name = "SurfaceDetail",
+		Default = "Ripples",
+		Options = { "Ripples", "Custom", "None" },
+		Section = "Visuals",
+		Hint = "Small ripples lit per pixel, finer than the waves: Ripples = the built-in animated ones; Custom = a SurfaceAppearance named WaterSurface you put inside the Ocean module; None = plain WaterMaterial",
+	},
+	num("RippleStrength", 0.04, 0, 1, 0.01, "Visuals", {
+		Hint = "How choppy the Ripples are (their average slope)",
+	}),
+	num("WaterRoughness", 0.1, 0, 1, 0.01, "Visuals", {
+		Hint = "With Ripples: 0 = glassy, sharp sun glints and sky reflection; 1 = matte",
+	}),
 	{
 		Name = "FoamStyle",
-		Default = "Animated",
+		Default = "Solid",
 		Options = { "Animated", "Texture", "Solid", "None" },
 		Section = "Visuals",
 		Rebuild = true,
 		Hint = "Crest foam: Animated = the built-in moving rings; Texture = your FoamTexture image; Solid = plain FoamColor; None = no foam layer",
 	},
 	-- heights below are fractions of the tallest possible crest (sum of wave amplitudes)
-	num("FoamStart", 0.45, -1, 1, 0.01, "Visuals", {
+	num("FoamStart", 0.04, -1, 1, 0.01, "Visuals", {
 		Weather = true,
 		Hint = "Crest height (0 to 1 of the tallest crest) where foam begins",
 	}),
-	num("FoamFull", 0.9, -1, 1, 0.01, "Visuals", {
+	num("FoamFull", 0.58, -1, 1, 0.01, "Visuals", {
 		Weather = true,
 		Hint = "Crest height where the foam is fully opaque",
 	}),
-	num("FoamOpacity", 0.35, 0, 1, 0.01, "Visuals", { Weather = true, Hint = "Opacity of the crest foam" }),
+	num("FoamOpacity", 0.75, 0, 1, 0.01, "Visuals", { Weather = true, Hint = "Opacity of the crest foam" }),
 	num("WebOpacity", 0, 0, 1, 0.01, "Visuals", {
 		Weather = true,
 		Hint = "Semi-transparent animated foam over the whole near surface, not only the crests (0 = off)",
@@ -215,7 +234,7 @@ Settings.List = {
 		Weather = true,
 		Hint = "Crest height (0 to 1 of the tallest crest) a wave must reach to throw spray",
 	}),
-	num("FilmOpacity", 0.05, 0, 1, 0.01, "Visuals", {
+	num("FilmOpacity", 0, 0, 1, 0.01, "Visuals", {
 		Weather = true,
 		Hint = "Translucent skin on the surface in the water's colour: things crossing it get a clear waterline",
 	}),
@@ -293,7 +312,7 @@ Settings.List = {
 		"Performance",
 		{ Rebuild = true, Hint = "Coarser cells past the inner ring, each Growth times larger than the last" }
 	),
-	num("Growth", 1.2, 1.02, 1.6, 0.01, "Performance", {
+	num("Growth", 1.2, 1.02, 5, 0.01, "Performance", {
 		Rebuild = true,
 		Hint = "How much larger each outer cell is than the one before it",
 	}),

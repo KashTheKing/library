@@ -14,19 +14,23 @@
 	in or out, cloning MeshParts) the engine rebuilds every skinned mesh at a cost of about
 	vertices x bones per mesh: one 6k-vertex / 2.5k-bone sea stalls ~900 ms on every stream-in
 	("the game freezes entering a new area"); four 625-vertex / 625-bone parts cost nothing
-	measurable. So the animated lattice is cut into blocks of BLOCK cells with the camera at a
-	block CORNER: the 2500-bone disc (radius ~28 cells) lands in exactly four tiles of at most
-	33 x 33 vertices, and every vertex no wave can reach (the outer ring, the horizon skirt)
-	lives in ONE plain mesh with no bones at all. Tiles share their border vertices (duplicated,
+	measurable (measured: ~20-25 ms per million vertices x bones in one mesh). So the animated
+	lattice is cut into blocks with the camera at a block CORNER: the bones land in exactly four
+	tiles, and every vertex no wave can reach (the outer ring, the horizon skirt) lives in ONE
+	plain mesh with no bones at all. Out along the axes the lattice is fine one way and coarse the
+	other; only a coarse subset of those points has a bone, the rest ride two of them blended, so
+	~3k bones carry the waves to the edge of the animated area (1-2k studs) in 4 modest tiles. Tiles share their border vertices (duplicated,
 	same rest position, same displacement), so there are no cracks. All of it sits under a Model
 	named OceanSurface that carries the stats attributes.
 
 	Budget: a client may hold only ~8 EditableMesh / EditableImage objects, whatever their size.
-	4 tiles + static + foam + film = 7 leaves one for the foam's animated image. When even that
-	is refused the build steps down: no film, then no foam, then a single tile.
+	4 tiles + static + foam + film = 7 leaves one for the foam's animated image; SurfaceDetail
+	Ripples adds two more. When that is refused the build steps down: no film, then no foam (and
+	no ripples), then a single tile.
 
 	LOD: the grid is uniform (CellSize) for InnerCells around the camera, then every cell outward
-	is Growth x bigger, and the last one stretches to RenderDistance. Each wave is faded out on
+	is Growth x bigger up to a sixth of the longest wavelength, then the horizon skirt stretches
+	to RenderDistance. Each wave is faded out on
 	vertices whose local spacing can't resolve its wavelength (< 6 cells per wave -> fading,
 	< 3 -> gone), so the distance never aliases/shimmers. Vertices no wave can reach are static
 	and get no bone at all.
@@ -41,19 +45,23 @@
 
 	Look: three parts.
 	  base: the whole lattice, flat SmoothPlastic in the water's colour (Part.Color: the vertex
-	        colours are white, so the tint and the night darkening never touch the mesh). Lit, so
-	        the skinned normals give the crests and troughs their shading.
+	        colours are white, so the tint and the night darkening never touch the mesh). Lit, and
+	        shaded by its bones' ROTATIONS: skinning turns a vertex's normal by its bone's rotation,
+	        never by its offset, so every bone is also turned onto the displaced surface's normal
+	        (see boneCFrame). Optionally a SurfaceAppearance on top with ripples lit per pixel
+	        (SurfaceDetail.luau).
 	  foam: a coarse near-camera lattice (2 x CellSize, InnerCells wide) with the animated
 	        foam-ring texture; per-vertex ALPHA is the foam amount. Its alpha has to be written,
 	        and a write to a SKINNED mesh is ~6x the cost of one to a plain mesh, so this one is
 	        NOT skinned: it is its own small plain mesh whose 400-odd positions and alphas are
 	        written outright (about 1 ms), never the base.
-	  film: the same coarse lattice, skinned, a translucent skin in the water's own colour at
+	  film: the same lattice, skinned, a translucent skin in the water's own colour at
 	        FilmOpacity, so anything crossing the surface gets a clear waterline.
 	Nothing writes to a skinned mesh after it is built: the textures tile by a multiple of the
 	cell and the mesh re-centres by that tile, so the UVs never need to move either.
-	Vertex alpha is only honoured on parts with Transparency > 0, hence FOAM_TRANSPARENCY; the base
-	stays at exactly 0 (opaque = depth-sorted properly, no seeing far waves through near ones).
+	Vertex alpha is only honoured on parts with Transparency > 0, hence FOAM_TRANSPARENCY. The base
+	takes WaterTransparency (0, opaque, in every preset); see-through, a near crest still hides the
+	water behind it.
 	Lit = false draws the base as Neon: Roblox has no other way to keep shadows and highlights off it.
 
 	Weather: with no zone near the camera every vertex shares the same 1-2 layers (fast path);
@@ -66,6 +74,7 @@ local RunService = game:GetService("RunService")
 
 local Regions = require(script.Parent.Regions)
 local Settings = require(script.Parent.Settings)
+local SurfaceDetail = require(script.Parent.SurfaceDetail)
 local SurfaceTexture = require(script.Parent.SurfaceTexture)
 local Waves = require(script.Parent.Waves)
 
@@ -91,7 +100,7 @@ local BEHIND_MARGIN = 48 -- studs behind the camera plane before a vertex counts
 local BEHIND_EVERY = 4 -- behind-camera vertices update every Nth frame (they still exist for turns)
 -- bones cost ~0.7 us each per frame whether or not they moved, and past ~4k a mesh
 -- gets pathological; the outermost animated vertices (long swells 400+ studs out) lose theirs first.
-local MAX_BONES = 2500
+local MAX_BONES = 3400
 
 -- Adaptive quality. A device's EditableMesh memory budget (tight on phones, generous in Studio)
 -- decides how much of the sea it can hold, and its frame time decides how much it can animate.
@@ -117,7 +126,10 @@ local building = false
 local function boneBudget(): number
 	return if budgetLevel >= 5 then 300 elseif budgetLevel >= 4 then 900 elseif budgetLevel >= 3 then 1600 else MAX_BONES
 end
-local BLOCK = 32 -- lattice cells per tile side: the camera sits at a block corner, so the bone disc is 4 tiles
+-- Lattice cells per tile side, at least BLOCK and as many as the bones reach: the camera sits at a
+-- block corner, so the bones land in 4 tiles and everything past them is the static mesh.
+local BLOCK = 32
+local block = BLOCK
 
 -- Quality tiers, applied on top of the Advanced mesh settings. Bone count (= animated vertices)
 -- is what the frame cost scales with, so Fast quarters it.
@@ -183,6 +195,7 @@ local localOf: { number } = {} -- vertex -> its index inside its tile (= the ski
 local latticeOf: { number } = {} -- vertex -> lattice point index (zi - 1) * gridN + xi
 local near: { number } = {} -- full-detail vertices some wave can move: updated every frame
 local far: { number } = {} -- LOD-ring vertices: updated every other frame, all together
+local idle: { number } = {} -- skinned vertices no current wave can move: placed on re-centre only
 local gridN = 0
 -- the foam lattice: FINE spacing over the inner half of the full-detail area (coarser and the base
 -- pokes through between its vertices), one plain mesh. Index f.
@@ -190,8 +203,7 @@ local foamX: { number } = {}
 local foamZ: { number } = {}
 local foamIds: { number } = {}
 local foamColorIds: { number } = {}
-local foamFade: { number } = {} -- foam vertex -> 1 inside, easing to 0 over the outer third
--- the film: a coarse lattice (2 x fine cell) over the full-detail area, skinned and tiled. Index j.
+-- the film: the foam's lattice (the base's own vertices over the inner half), skinned. Index j.
 local filmBones: { Bone } = {}
 local filmX: { number } = {}
 local filmZ: { number } = {}
@@ -199,6 +211,7 @@ local lastSeaLevel = math.huge -- the parts' height last written
 local foamAlphas: { number } = {} -- last alpha written per foam vertex
 local foamKeys: { number } = {} -- quantised colour last written per foam vertex
 local foamDamp: { number? } = {} -- foam vertex -> obstacle damp, nil = open water
+local filmDamp: { number? } = {} -- film bone -> obstacle damp, nil = open water
 -- Dry regions sink the mesh: every vertex inside a box drops to just under the box bottom, and the
 -- ring of them next to the outside is also pushed out to the wall, so the surface dives from the
 -- water line down the outside of the wall and runs flat underneath - no hole, no water indoors.
@@ -209,6 +222,8 @@ local pinned: { { number }? } = {} -- vertex -> { dx, dz, y } world offset to th
 local dampOf: { number? } = {} -- vertex -> damp factor, nil = open water
 local nearDry: { boolean? } = {} -- vertex -> true when within shove reach of a dry box footprint
 local dryNear: { Regions.Box } = {} -- the boxes near the mesh, for those vertices
+local foamPin: { { number }? } = {} -- foam vertex inside a dry box -> { dx, dz, y } like `pinned`
+local filmPin: { { number }? } = {} -- film bone inside a dry box, the same
 local staticTimer = 0
 local staticDone = false -- StaticWaves: one full position pass has been written since the last change
 local coloredOnce = false -- DynamicColors off: one colour pass has been written
@@ -218,13 +233,33 @@ local lastOx, lastOz = math.huge, math.huge
 local tile = 32 -- studs per texture repeat: TILE_CELLS fine cells
 local snap = 32 -- studs the mesh re-centres by: the texture tile, so the textures stay put in the world
 -- Continuous LOD: the fade of each wave depends on distance from the TRUE camera position, via
--- the grid's own spacing law spacing(d) = cell + (d - innerRadius) * (growth - 1) / growth, not on
--- which ring a vertex happens to sit in, so re-centring the mesh never changes a wave's weight.
-local lodCell, lodInner, lodSlope = 8, 0, 0
+-- the grid's own spacing law spacing(d) = min(cell + (d - innerRadius) * (growth - 1) / growth, cap),
+-- not on which ring a vertex happens to sit in, so re-centring the mesh never changes a wave's weight.
+-- The cap: outer cells stop growing at a sixth of the longest wavelength (the most the fade draws
+-- at full height), so the long swell reaches the edge of the animated area at full height instead
+-- of fading out a few rings past the inner one.
+local lodCell, lodInner, lodSlope, lodCap = 8, 0, 0, math.huge
 local animatedRadius = 0
 -- The skin set is the nearest MAX_BONES lattice points, a disc; past its edge vertices rest flat on
--- Root. Every wave fades to nothing over the outer part of that disc, so the edge never shows.
-local skinFade: { number } = {} -- vertex -> 0..1 multiplier on its displacement
+-- Root. Every wave fades to nothing over the outer part of that disc, so the edge never shows. The
+-- fade (and the foam's) is measured from the camera, not the mesh centre, which jumps a tile at a
+-- time: a ring measured from it would jump with it. It ends a re-centre step short of the disc
+-- (the camera is at most that far from the centre), so it is complete wherever the camera is.
+local skinFadeFrom, skinFadeTo = 0, 1 -- studs from the camera
+local foamFadeFrom, foamFadeTo = 0, 1 -- studs from the camera, per axis (the foam lattice is square)
+-- A re-centre moves every vertex a tile, so past the uniform inner cells each one samples the waves
+-- somewhere new and a crest drawn on the old samples would pop to the new ones. Instead each vertex
+-- starts where the old surface was drawn at its new place (the old lattice, interpolated) and eases
+-- to its own sample over MORPH_TIME.
+local MORPH_TIME = 0.35
+local VALUES = 8 -- per drawn point: displacement x, y, z, then the five normal sums
+local drawn: { number } = {} -- lattice point -> what was last drawn there (VALUES each, after fades)
+local morphFrom: { number } = {} -- vertex -> the old surface at its new place, on the re-centre frame
+local morphOff: { number } = {} -- vertex -> old surface minus own sample, easing to 0
+local morphStart = -math.huge
+local gridCoords: { number } = {} -- the lattice axis in force
+local skinnedAt: { boolean? } = {} -- lattice point -> it has a bone
+local blendOf: { [number]: { number } } = {} -- lattice point -> the two bone points it rides, and A's weight
 local seenVersion = -1
 local seenNight = -1
 
@@ -255,18 +290,23 @@ local function applyQuality()
 	tile = qCell * TILE_CELLS
 	snap = tile
 	SurfaceTexture.SetSmooth(quality.SmoothFoam)
+	SurfaceDetail.SetSmooth(quality.SmoothFoam)
 end
 
 local function buildAxis(): ({ number }, { number })
 	local cell, inner, outer = qCell, qInner, qOuter
 	local growth = Settings.Get("Growth")
+	local cap = lodCap
 
 	local half = { 0 } -- coordinates from the centre outward
 	local sizes = {} -- sizes[i] = cell between half[i] and half[i + 1]
 	local size = cell
+	-- the animated area stops at a quarter of RenderDistance however large Growth is: past that
+	-- the cells left share what remains evenly
+	local reach = Settings.Get("RenderDistance") / 4
 	for i = 1, inner + outer do
 		if i > inner then
-			size *= growth
+			size = math.min(size * growth, math.max((reach - half[i]) / (inner + outer - i + 1), cell), cap)
 		end
 		sizes[i] = size
 		half[i + 1] = half[i] + size
@@ -338,6 +378,17 @@ local function surfaceParts(): { MeshPart }
 	return list
 end
 
+-- Air and Water are terrain-only: a part cannot take them
+local function partMaterials(): { Enum.Material }
+	local items = {}
+	for _, item in Enum.Material:GetEnumItems() do
+		if item ~= Enum.Material.Air and item ~= Enum.Material.Water then
+			table.insert(items, item)
+		end
+	end
+	return items
+end
+
 -- WaterMaterial by name: an Enum.Material or a MaterialVariant in MaterialService (returned as the
 -- second value with its base); an unknown name lands on the closest (prefix / substring), else the default.
 local function materialFor(name: string): (Enum.Material, string)
@@ -347,7 +398,7 @@ local function materialFor(name: string): (Enum.Material, string)
 			return variant.BaseMaterial, variant.Name
 		end
 	end
-	local items = Enum.Material:GetEnumItems()
+	local items = partMaterials()
 	for _, item in items do
 		if item.Name:lower() == wanted then
 			return item, ""
@@ -372,7 +423,7 @@ local function applyLook()
 		base.MaterialVariant = if Settings.Get("Lit") then variant else ""
 		base.Reflectance = if Settings.Get("Lit") then Settings.Get("Reflectance") else 0
 		base.TextureContent = texture
-		base.Transparency = 0 -- opaque: depth-sorted exactly
+		base.Transparency = Settings.Get("WaterTransparency")
 	end
 	local foam = foamPart
 	if foam then
@@ -385,6 +436,9 @@ local function applyLook()
 			foam.TextureContent = image or Content.none -- Solid (or a blank texture id): plain colour
 		end
 	end
+	-- ripples need the lit water, and go with the foam when the device's budget is tight
+	local detail = if Settings.Get("Lit") and budgetLevel < 2 then Settings.Get("SurfaceDetail") else "None"
+	SurfaceDetail.Apply(detail, surfaceParts())
 end
 
 -- 1 by day, NightBrightness once the sun is down. The ocean only READS the sky; it never sets it.
@@ -413,66 +467,68 @@ local function recolour(night: number)
 	end
 end
 
--- Which vertices any wave can still move (near: fine lattice, far: LOD ring): those get their
--- Bone instance; the rest (and the vertices past the skin budget) stand still at rest on Root.
--- The rule is per lattice point, so both copies of a shared border vertex agree.
+-- Which vertices any wave can still move (near: fine lattice, far: LOD ring). Every skinned vertex
+-- keeps its Bone instance: without one it would draw where it was built, not where the mesh has
+-- re-centred, and blended neighbours ride it. The ones no wave can move are `idle`: moved by the
+-- re-centre only. The rule is per lattice point, so both copies of a shared border vertex agree.
 local function refreshActive()
 	if not container then
 		return
 	end
 	table.clear(near)
 	table.clear(far)
+	table.clear(idle)
 	animatedRadius = 0
 	local fine = 1 / (3 * qCell) - 1e-9
 	local active = 0
 	for v = 1, #baseX do
-		local bone = bones[v]
+		if not hasSkin[v] then
+			continue
+		end
+		if not bones[v] then
+			local bone = Instance.new("Bone")
+			bone.Name = tostring(localOf[v])
+			bone.Position = Vector3.new(baseX[v], 0, baseZ[v])
+			bone.Parent = partOf[v]
+			bones[v] = bone
+		end
 		-- a wave still moves this vertex if wavelength * invSpacing - 1 > 0
-		if hasSkin[v] and Waves.MaxLength * invSpacing[v] > 1 then
+		if Waves.MaxLength * invSpacing[v] > 1 then
 			active += 1
-			if not bone then
-				bone = Instance.new("Bone")
-				bone.Name = tostring(localOf[v])
-				bone.Position = Vector3.new(baseX[v], 0, baseZ[v])
-				bone.Parent = partOf[v]
-				bones[v] = bone
-			end
 			if invSpacing[v] >= fine then
 				table.insert(near, v)
 			else
 				table.insert(far, v)
 			end
 			animatedRadius = math.max(animatedRadius, math.abs(baseX[v]), math.abs(baseZ[v]))
-		elseif bone then
-			bone:Destroy()
-			bones[v] = nil
+		else
+			table.insert(idle, v)
 		end
 	end
+	lastOx, lastOz = math.huge, math.huge -- the next update places every bone, idle ones included
 	Renderer.Stats.Active = active
-	Renderer.Stats.Bones = #near + #far + #filmBones
+	Renderer.Stats.Bones = #near + #far + #idle + #filmBones
 	seenNight = -1 -- recolour
 end
 
 -- The plugin's flat placeholder water is hidden (locally) while the wave mesh runs, and left
--- showing when the sea is flat: then it IS the sea.
-local hiddenPlaceholders: { [BasePart]: number } = {}
-
+-- showing when the sea is flat: then it IS the sea. Nothing else uses the modifier on it, so
+-- showing is always back to 0: a slab hidden by an earlier run of this module (a reinstall, a
+-- plugin reload) comes back too.
 local function hidePlaceholders()
 	for _, placeholder in CollectionService:GetTagged(PLACEHOLDER_TAG) do
-		if placeholder:IsA("BasePart") and hiddenPlaceholders[placeholder] == nil then
-			hiddenPlaceholders[placeholder] = placeholder.LocalTransparencyModifier
+		if placeholder:IsA("BasePart") then
 			placeholder.LocalTransparencyModifier = 1 -- local only: the saved part is untouched
 		end
 	end
 end
 
 local function showPlaceholders()
-	for placeholder, modifier in hiddenPlaceholders do
-		if placeholder.Parent then
-			placeholder.LocalTransparencyModifier = modifier
+	for _, placeholder in CollectionService:GetTagged(PLACEHOLDER_TAG) do
+		if placeholder:IsA("BasePart") then
+			placeholder.LocalTransparencyModifier = 0
 		end
 	end
-	table.clear(hiddenPlaceholders)
 end
 
 local function destroyMesh()
@@ -502,7 +558,6 @@ local function destroyMesh()
 	table.clear(partOf)
 	table.clear(localOf)
 	table.clear(latticeOf)
-	table.clear(foamFade)
 end
 
 -- The block a lattice CELL (1 .. n - 1, spanning vertices c .. c + 1) belongs to. The centre
@@ -513,7 +568,7 @@ local function blockOf(c: number, m: number): number
 	if budgetLevel >= 3 then
 		return 0 -- one tile for the whole lattice
 	end
-	return (c - m) // BLOCK
+	return (c - m) // block
 end
 
 -- A mesh over a set of lattice cells: UVs tiled in world studs, an optional colour per vertex, and
@@ -523,13 +578,15 @@ end
 -- so a tile (a rectangle of cells) and the static mesh (any set) share this. Returns the mesh, the
 -- lattice point of each emitted vertex, the vertex ids, the colour ids, and the creation shrink
 -- (< 1 when the mesh is wider than the 2048-stud creation cap; the caller restores the real
--- positions after CreateMeshPartAsync).
+-- positions after CreateMeshPartAsync). `blend` (lattice point -> { point A, point B, weight of A })
+-- binds a point with no bone of its own between two that have one, in this same mesh.
 local function latticeMesh(
 	coords: { number },
 	cells: { number },
 	n: number,
 	withColors: boolean,
-	skin: { boolean? } | boolean
+	skin: { boolean? } | boolean,
+	blend: { [number]: { number } }?
 ): (EditableMesh, { number }, { number }, { number }, number)
 	local em = AssetService:CreateEditableMesh()
 	if not em then
@@ -538,6 +595,7 @@ local function latticeMesh(
 	table.insert(pendingMeshes, em)
 	local verts, vids, cids, uvs = {}, {}, {}, {}
 	local emitted: { [number]: number } = {} -- lattice point -> emitted index
+	local boneOf: { [number]: number } = {} -- emitted index -> its own skin bone
 	local root = if typeof(skin) == "table"
 		then em:AddBone({ Name = "Root", CFrame = CFrame.identity, Virtual = false })
 		else nil
@@ -570,6 +628,7 @@ local function latticeMesh(
 		end
 		if skin == true or (typeof(skin) == "table" and skin[L]) then
 			local bid = em:AddBone({ Name = tostring(k), CFrame = CFrame.new(x, 0, z), Virtual = false })
+			boneOf[k] = bid
 			em:SetVertexBones(vids[k], { bid })
 			em:SetVertexBoneWeights(vids[k], { 1 })
 		elseif root then
@@ -587,6 +646,17 @@ local function latticeMesh(
 			em:SetFaceUVs(face, { uvs[tri[1]], uvs[tri[2]], uvs[tri[3]] })
 			if withColors then
 				em:SetFaceColors(face, { cids[tri[1]], cids[tri[2]], cids[tri[3]] })
+			end
+		end
+	end
+	-- the blended points, now that every bone is in (they stay on Root if a partner is not)
+	if blend then
+		for k, L in verts do
+			local pair = blend[L]
+			local a, b = pair and emitted[pair[1]], pair and emitted[pair[2]]
+			if a and b and boneOf[a] and boneOf[b] then
+				em:SetVertexBones(vids[k], { boneOf[a], boneOf[b] })
+				em:SetVertexBoneWeights(vids[k], { pair[3], 1 - pair[3] })
 			end
 		end
 	end
@@ -614,6 +684,7 @@ end
 
 local function buildOnce(token: number)
 	applyQuality()
+	lodCap = math.max(qCell, Waves.MaxLength / 6)
 	local coords, space = buildAxis()
 	lodCell = qCell
 	lodInner = qCell * qInner
@@ -622,12 +693,53 @@ local function buildOnce(token: number)
 	local n = #coords
 	local m = (n + 1) // 2 -- the centre vertex (coords[m] == 0)
 
-	-- The skin set, per lattice point: the nearest points first until MAX_BONES is spent. A point on
-	-- a block border exists in two (or four) tiles and needs a bone in each, so it costs that many.
+	-- The lattice is rows x columns, so out along the axes one direction stays as fine as the inner
+	-- square while the other is coarse, and the waves there are only drawn at the coarse spacing (the
+	-- LOD fade). A bone on every point of those strips would spend most of the budget on nothing.
+	-- Along the finer axis only coordinates about the coarse spacing apart (picked outward from the
+	-- centre) get a bone; each point between rides the two either side of it, blended.
+	local keptCache: { [number]: { boolean } } = {}
+	local function keptAt(r: number): { boolean }
+		local kept = keptCache[r]
+		if not kept then
+			kept = table.create(n, false)
+			kept[m] = true
+			for dir = -1, 1, 2 do
+				local last, i = 0, m + dir
+				while i >= 1 and i <= n do
+					if math.abs(coords[i] - last) >= r * 0.75 then
+						kept[i] = true
+						last = coords[i]
+					end
+					i += dir
+				end
+			end
+			keptCache[r] = kept
+		end
+		return kept
+	end
+	-- the finer axis at a point (1 = x, 2 = z, 0 = neither) and the coordinates kept along it
+	local function fineAxis(xi: number, zi: number): (number, { boolean }?)
+		local sx, sz = space[xi], space[zi]
+		if sx < sz then
+			return 1, keptAt(sz)
+		elseif sz < sx then
+			return 2, keptAt(sx)
+		end
+		return 0, nil
+	end
+
+	-- The skin set, per lattice point: the nearest bone-owning points some wave can move, until
+	-- MAX_BONES is spent. The tiles are grown to hold all of them, so the only block borders they
+	-- cross are the two centre lines; a point on one is in two (or four) tiles, a bone in each.
 	local byDistance = {}
 	for zi = 1, n do
 		for xi = 1, n do
-			table.insert(byDistance, (zi - 1) * n + xi)
+			local axis, kept = fineAxis(xi, zi)
+			local owns = axis == 0 or (kept :: { boolean })[if axis == 1 then xi else zi]
+			if owns and Waves.MaxLength > 3 * math.max(space[xi], space[zi]) then
+				table.insert(byDistance, (zi - 1) * n + xi)
+			end
 		end
 	end
 	table.sort(byDistance, function(a, b)
@@ -635,20 +747,64 @@ local function buildOnce(token: number)
 		local bx, bz = coords[(b - 1) % n + 1], coords[(b - 1) // n + 1]
 		return ax * ax + az * az < bx * bx + bz * bz
 	end)
-	local function onBorder(i: number): boolean -- vertex i is shared by cells i - 1 and i in different blocks
-		return i > 1 and i < n and blockOf(i - 1, m) ~= blockOf(i, m)
-	end
+	local oneTile = budgetLevel >= 3
 	local skinL: { boolean? } = {}
-	local spent = 0
+	local spent, skinReach = 0, 0
 	for _, L in byDistance do
 		local xi, zi = (L - 1) % n + 1, (L - 1) // n + 1
-		local cost = (if onBorder(xi) then 2 else 1) * (if onBorder(zi) then 2 else 1)
+		local cost = if oneTile then 1 else (if xi == m then 2 else 1) * (if zi == m then 2 else 1)
 		if spent + cost > boneBudget() then
 			break
 		end
 		spent += cost
 		skinL[L] = true
+		skinReach = math.max(skinReach, math.sqrt(coords[xi] ^ 2 + coords[zi] ^ 2))
 	end
+
+	-- every other point between two skinned ones along its finer axis rides them, blended
+	local blend: { [number]: { number } } = {}
+	local lone = {} -- inside the skin with no pair to ride (near the diagonal): a bone of its own
+	for zi = 1, n do
+		for xi = 1, n do
+			local L = (zi - 1) * n + xi
+			local axis, kept = fineAxis(xi, zi)
+			local i = if axis == 1 then xi else zi
+			if
+				skinL[L]
+				or math.sqrt(coords[xi] ^ 2 + coords[zi] ^ 2) > skinReach
+				or Waves.MaxLength <= 3 * math.max(space[xi], space[zi])
+			then
+				continue -- skinned already, or at rest like everything past the skin
+			elseif axis == 0 or (kept :: { boolean })[i] then
+				table.insert(lone, L)
+				continue
+			end
+			local toward = if i > m then -1 else 1
+			local a, b = i + toward, i - toward -- the kept coordinates either side
+			while not (kept :: { boolean })[a] do
+				a += toward
+			end
+			while b >= 1 and b <= n and not (kept :: { boolean })[b] do
+				b -= toward
+			end
+			local La = if axis == 1 then (zi - 1) * n + a else (a - 1) * n + xi
+			local Lb = if axis == 1 then (zi - 1) * n + b else (b - 1) * n + xi
+			if b >= 1 and b <= n and skinL[La] and skinL[Lb] then
+				blend[L] = { La, Lb, (coords[b] - coords[i]) / (coords[b] - coords[a]) }
+			else
+				table.insert(lone, L)
+			end
+		end
+	end
+	-- (a few, on top of the budget: without one they would sit flat between moving neighbours)
+	local reach = 0 -- the farthest skinned point from the centre, in lattice steps
+	for _, L in lone do
+		skinL[L] = true
+	end
+	for L in skinL do
+		reach = math.max(reach, math.abs((L - 1) % n + 1 - m), math.abs((L - 1) // n + 1 - m))
+	end
+	block = math.max(BLOCK, reach + 1)
 
 	-- A block with any skinnable point is a tile; every other cell is static. A skinnable point is
 	-- in every block that touches it, so the tile / static border is at rest on both sides.
@@ -682,7 +838,7 @@ local function buildOnce(token: number)
 	local newTileMeshes, tileVerts, tileVids, tileShrink = {}, {}, {}, {}
 	for i, key in tileKeys do
 		newTileMeshes[i], tileVerts[i], tileVids[i], _, tileShrink[i] =
-			latticeMesh(coords, cellsOf[key], n, false, skinL)
+			latticeMesh(coords, cellsOf[key], n, false, skinL, blend)
 	end
 	local newStatic: EditableMesh?, staticVids, staticVerts, staticShrink = nil, {}, {}, 1
 	if #staticCells > 0 then
@@ -706,13 +862,10 @@ local function buildOnce(token: number)
 		end
 		fm, foamVerts, newFoamIds, foamColors = latticeMesh(fineHalf, allFoam, fn, true, false)
 	end
-	-- film: the coarse lattice over the whole full-detail area, skinned and tiled like the base
-	local coarse = {}
-	for c = -lodInner, lodInner + 1e-3, 2 * qCell do
-		table.insert(coarse, c)
-	end
-	local cn = #coarse
-	-- one mesh: at most 625 vertices, and every mesh counts against the client's budget
+	-- film: the foam's lattice, skinned. Its vertices are the base's own (same spacing, same
+	-- places), so the water never pokes through it between two of them. One mesh: every mesh
+	-- counts against the client's budget.
+	local coarse, cn = fineHalf, fn
 	local newFilmMeshes, filmVerts = {}, {}
 	if quality.Film and Settings.Get("Highlights") and budgetLevel < 1 then
 		local allCoarse = {}
@@ -720,11 +873,12 @@ local function buildOnce(token: number)
 			table.insert(allCoarse, c)
 		end
 		local sm, verts, _, colors = latticeMesh(coarse, allCoarse, cn, true, true)
-		local fadeStart = lodInner * 0.6
+		local filmEdge = lodInner / 2
+		local fadeStart = filmEdge * 0.6
 		-- alpha fades out over the outer third so the edge never shows
 		for k, L in verts do
 			local edge = math.max(math.abs(coarse[(L - 1) % cn + 1]), math.abs(coarse[(L - 1) // cn + 1]))
-			local t = math.clamp((edge - fadeStart) / (lodInner - fadeStart), 0, 1)
+			local t = math.clamp((edge - fadeStart) / (filmEdge - fadeStart), 0, 1)
 			sm:SetColorAlpha(colors[k], 1 - t * t * (3 - 2 * t))
 		end
 		newFilmMeshes[1], filmVerts[1] = sm, verts
@@ -833,14 +987,11 @@ local function buildOnce(token: number)
 	foamIds, foamColorIds = newFoamIds, foamColors
 	table.clear(foamX)
 	table.clear(foamZ)
-	local foamEdge = lodInner / 2
-	local foamFadeStart = foamEdge * 0.6
+	-- the foam fades out over the outer part of its lattice, measured from the camera
+	foamFadeTo = math.max(lodInner / 2 - snap / 2, qCell)
+	foamFadeFrom = foamFadeTo * 0.6
 	for f, L in foamVerts do
-		local x, z = fineHalf[(L - 1) % fn + 1], fineHalf[(L - 1) // fn + 1]
-		foamX[f], foamZ[f] = x, z
-		-- fades out over the outer third so the foam's edge never shows
-		local t = math.clamp((math.max(math.abs(x), math.abs(z)) - foamFadeStart) / (foamEdge - foamFadeStart), 0, 1)
-		foamFade[f] = 1 - t * t * (3 - 2 * t)
+		foamX[f], foamZ[f] = fineHalf[(L - 1) % fn + 1], fineHalf[(L - 1) // fn + 1]
 	end
 	-- the flat per-vertex arrays, one entry per tile vertex
 	table.clear(baseX)
@@ -868,14 +1019,13 @@ local function buildOnce(token: number)
 			skinRadius = math.max(skinRadius, math.sqrt(baseX[v] * baseX[v] + baseZ[v] * baseZ[v]))
 		end
 	end
-	local fadeFrom = skinRadius * 0.7
-	table.clear(skinFade)
-	for v = 1, #baseX do
-		local d = math.sqrt(baseX[v] * baseX[v] + baseZ[v] * baseZ[v])
-		local t = math.clamp((d - fadeFrom) / math.max(skinRadius - fadeFrom, 1), 0, 1)
-		skinFade[v] = 1 - t * t * (3 - 2 * t)
-	end
+	skinFadeTo = math.max(skinRadius - snap, 1)
+	skinFadeFrom = skinFadeTo * 0.7
 	gridN = n
+	gridCoords, skinnedAt, blendOf = coords, skinL, blend
+	table.clear(drawn)
+	table.clear(morphOff)
+	morphStart = -math.huge
 	applyLook()
 	table.clear(pinned)
 	staticTimer = STATIC_REFRESH -- refresh the fields on the first update
@@ -903,6 +1053,7 @@ local warnedNoMesh = false
 local flatPart: Part? = nil
 
 local function showFlat()
+	SurfaceDetail.Stop() -- no wave mesh, no parts for the ripples: free their maps
 	showPlaceholders()
 	Waves.SetLocalFlat(true)
 	if #CollectionService:GetTagged(PLACEHOLDER_TAG) > 0 then
@@ -936,6 +1087,7 @@ local function showFlat()
 	part.Material = material
 	part.MaterialVariant = variant
 	part.Reflectance = Settings.Get("Reflectance")
+	part.Transparency = Settings.Get("WaterTransparency")
 end
 
 -- The wave mesh is on screen: the flat water steps aside.
@@ -1060,6 +1212,19 @@ local function stepDown()
 	task.spawn(build)
 end
 
+-- The pin of a foam or film vertex inside a dry box: out to the nearest wall and sunk under the
+-- floor, so the layer is cut out of the box like the water under it.
+local function pinFor(boxes: { Regions.Box }, wx: number, wz: number): { number }?
+	for _, box in boxes do
+		local bx, bz = wx - box.X, wz - box.Z
+		if bx * bx + bz * bz < box.Reach * box.Reach and Regions.CoversXZ(box, wx, wz) then
+			local px, pz = Regions.PushOut(box, wx, wz)
+			return { px - wx, pz - wz, box.Bottom - DRY_SINK }
+		end
+	end
+	return nil
+end
+
 -- Recompute the per-vertex static fields for the mesh centred at (ox, oz): obstacle damping,
 -- dry-region pins and the shove-clamp candidates.
 local function refreshStatic(ox: number, oz: number)
@@ -1067,6 +1232,9 @@ local function refreshStatic(ox: number, oz: number)
 	table.clear(dampOf)
 	table.clear(nearDry)
 	table.clear(foamDamp)
+	table.clear(filmDamp)
+	table.clear(foamPin)
+	table.clear(filmPin)
 	if not container then
 		return
 	end
@@ -1086,11 +1254,23 @@ local function refreshStatic(ox: number, oz: number)
 				foamDamp[f] = damp
 			end
 		end
+		for j = 1, #filmX do
+			local damp = Waves.Damp(obstacles, ox + filmX[j], oz + filmZ[j])
+			if damp < 1 then
+				filmDamp[j] = damp
+			end
+		end
 	end
 	dryNear = Regions.Near(ox, oz, animatedRadius * 1.5)
 	local boxes = Regions.List()
 	if #boxes == 0 then
 		return
+	end
+	for f = 1, #foamX do
+		foamPin[f] = pinFor(boxes, ox + foamX[f], oz + foamZ[f])
+	end
+	for j = 1, #filmX do
+		filmPin[j] = pinFor(boxes, ox + filmX[j], oz + filmZ[j])
 	end
 	local n = gridN
 	local inBox: { [number]: Regions.Box } = {} -- by lattice point: shared vertices agree
@@ -1192,6 +1372,10 @@ local function applyTint(focus: Vector3)
 	end
 	if under then
 		local color, transparency = Settings.Get("UnderwaterTint"), 1 - Settings.Get("UnderwaterOpacity")
+		if Settings.Get("DynamicLighting") then -- darkens with the sun, like the water itself
+			local night = nightFactor()
+			color = Color3.new(color.R * night, color.G * night, color.B * night)
+		end
 		if tint.BackgroundColor3 ~= color then
 			tint.BackgroundColor3 = color
 		end
@@ -1235,13 +1419,22 @@ local function gatherAt(wx: number, wz: number)
 end
 
 -- Gerstner sum at a world point with the LOD fade for that point's spacing (inv); no damping.
-local function waveAt(wx: number, wz: number, inv: number, t: number): (number, number, number)
+-- Returns the displacement, then the five sums the surface's normal is made of (see boneCFrame):
+-- the height's slope along X and Z, and how much the sideways shove stretches or squeezes the
+-- surface (XX, XZ, ZZ). All eight scale together with the wave amplitudes.
+local function waveAt(
+	wx: number,
+	wz: number,
+	inv: number,
+	t: number
+): (number, number, number, number, number, number, number, number)
 	if flatSea then -- FlatSea: the same sea, its surface level (the tiles rest at zero displacement)
-		return 0, 0, 0
+		return 0, 0, 0, 0, 0, 0, 0, 0
 	end
 	local sets, weights = Waves.LayerSets, Waves.LayerWeights
 	local cos, sin = math.cos, math.sin
 	local dx, dy, dz = 0, 0, 0
+	local gx, gz, sxx, sxz, szz = 0, 0, 0, 0, 0
 	for i = 1, gCount do
 		local set, layerWeight = sets[i], weights[i]
 		local length, kx, kz, omega, amp, dirX, dirZ =
@@ -1252,13 +1445,49 @@ local function waveAt(wx: number, wz: number, inv: number, t: number): (number, 
 				local f = kx[w] * wx + kz[w] * wz - omega[w] * t
 				local a = amp[w] * layerWeight * (if lod > 1 then 1 else lod)
 				local c = cos(f) * a
-				dx += dirX[w] * c
-				dz += dirZ[w] * c
-				dy += sin(f) * a
+				local s = sin(f) * a
+				local ux, uz = dirX[w], dirZ[w]
+				local waveX, waveZ = kx[w], kz[w]
+				dx += ux * c
+				dz += uz * c
+				dy += s
+				gx += waveX * c
+				gz += waveZ * c
+				sxx += ux * waveX * s
+				sxz += ux * waveZ * s
+				szz += uz * waveZ * s
 			end
 		end
 	end
-	return dx, dy, dz
+	return dx, dy, dz, gx, gz, sxx, sxz, szz
+end
+
+-- The bone of a vertex at (x, y, z) in its part's space: the offset AND a turn. Skinning lights a
+-- vertex by its bone's rotation, never its offset, so a bone that only moved would leave the whole
+-- sea lit like a flat sheet. The turn takes +Y onto the displaced surface's exact normal: the
+-- cross product of its two tangents, (1 - XX, slope X, -XZ) along X and (-XZ, slope Z, 1 - ZZ)
+-- along Z. `m` is how much of the wave reaches this vertex (fades, damping; 0 = flat), times
+-- WaveShading. The quaternion is the shortest turn from +Y onto that normal.
+local shading = 1 -- WaveShading, read once per update
+local function boneCFrame(
+	x: number,
+	y: number,
+	z: number,
+	m: number,
+	gx: number,
+	gz: number,
+	sxx: number,
+	sxz: number,
+	szz: number
+): CFrame
+	m *= shading
+	gx, gz, sxx, sxz, szz = gx * m, gz * m, sxx * m, sxz * m, szz * m
+	local nx = -gz * sxz - gx * (1 - szz)
+	local ny = math.max((1 - sxx) * (1 - szz) - sxz * sxz, 0.05) -- a folding crest never turns over
+	local nz = -gx * sxz - gz * (1 - sxx)
+	local w = math.sqrt(nx * nx + ny * ny + nz * nz) + ny
+	local s = 1 / math.sqrt(nx * nx + nz * nz + w * w)
+	return CFrame.new(x, y, z, nz * s, 0, -nx * s, w * s)
 end
 
 -- World Y of the surface as this client draws it at (x, z): the wave sum of the mesh on screen
@@ -1284,6 +1513,82 @@ function surfaceAt(x: number, z: number): number
 	end
 	gCount, gZones, gNow, gGlobalLoaded = savedCount, savedZones, savedNow, savedLoaded
 	return Waves.SeaLevel + y
+end
+
+-- Where the last frame's drawing of lattice point L comes from, added to the sources list with
+-- weight w: its own bone's values, the two bones it rides, or nothing (at rest past the skin).
+local srcAt, srcW = table.create(8, 0), table.create(8, 0)
+local function addSource(count: number, L: number, w: number): number
+	if w == 0 then
+		return count
+	end
+	if skinnedAt[L] then
+		count += 1
+		srcAt[count], srcW[count] = (L - 1) * VALUES, w
+		return count
+	end
+	local pair = blendOf[L]
+	if pair then
+		srcAt[count + 1], srcW[count + 1] = (pair[1] - 1) * VALUES, w * pair[3]
+		srcAt[count + 2], srcW[count + 2] = (pair[2] - 1) * VALUES, w * (1 - pair[3])
+		return count + 2
+	end
+	return count
+end
+
+-- The lattice axis cell holding local coordinate x: its lower index and x's place across it (0 = outside).
+local function locate(x: number): (number, number)
+	local c, n = gridCoords, gridN
+	if x < c[1] or x > c[n] then
+		return 0, 0
+	end
+	local lo, hi = 1, n - 1
+	while lo < hi do
+		local mid = (lo + hi + 1) // 2
+		if c[mid] <= x then
+			lo = mid
+		else
+			hi = mid - 1
+		end
+	end
+	return lo, (x - c[lo]) / (c[lo + 1] - c[lo])
+end
+
+-- The mesh just re-centred by (sx, sz): for every animated vertex, the old surface at its new place
+-- (the old lattice's drawn values, bilinear across the old cell it now sits in).
+local cellX, fracX, cellZ, fracZ = {}, {}, {}, {}
+local function captureMorph(sx: number, sz: number)
+	local n = gridN
+	for i = 1, n do
+		cellX[i], fracX[i] = locate(gridCoords[i] + sx)
+		cellZ[i], fracZ[i] = locate(gridCoords[i] + sz)
+	end
+	for pass = 1, 2 do
+		local list = if pass == 1 then near else far
+		for _, v in list do
+			local L = latticeOf[v]
+			local xi, zi = (L - 1) % n + 1, (L - 1) // n + 1
+			local j, k = cellX[xi], cellZ[zi]
+			local o = (v - 1) * VALUES
+			if j == 0 or k == 0 then
+				morphFrom[o + 1] = nil
+				continue
+			end
+			local tx, tz = fracX[xi], fracZ[zi]
+			local a = (k - 1) * n + j
+			local count = addSource(0, a, (1 - tx) * (1 - tz))
+			count = addSource(count, a + 1, tx * (1 - tz))
+			count = addSource(count, a + n, (1 - tx) * tz)
+			count = addSource(count, a + n + 1, tx * tz)
+			for q = 1, VALUES do
+				local value = 0
+				for s = 1, count do
+					value += (drawn[srcAt[s] + q] or 0) * srcW[s]
+				end
+				morphFrom[o + q] = value
+			end
+		end
+	end
 end
 
 local function update()
@@ -1331,6 +1636,7 @@ local function update()
 	local ox = math.round(focus.X / snap) * snap
 	local oz = math.round(focus.Z / snap) * snap
 	local moved = ox ~= lastOx or oz ~= lastOz
+	local prevOx, prevOz = lastOx, lastOz
 	lastOx, lastOz = ox, oz
 	local fm, fp = foamMesh, foamPart
 	local seaLevel = Waves.SeaLevel
@@ -1347,8 +1653,12 @@ local function update()
 		end
 	end
 	if moved then
+		local offset = CFrame.new(ox, 0, oz)
 		for _, root in roots do
-			root.Transform = CFrame.new(ox, 0, oz)
+			root.Transform = offset
+		end
+		for _, v in idle do
+			(bones[v] :: Bone).Transform = offset
 		end
 		if staticPart then -- no bones: a plain part, moved by whole texture tiles
 			staticPart.CFrame = CFrame.new(ox, seaLevel, oz)
@@ -1377,11 +1687,12 @@ local function update()
 	Renderer.Stats.Layers = if #gZones > 0 then -#gZones else gCount
 
 	local clamp, floor = math.clamp, math.floor
-	local nightKey = floor(night * 100) * 4096
+	local nightKey = floor(night * 100) * 262144
 	local fineInv = 1 / (3 * lodCell)
 
 	frame += 1
 	flatSea = Settings.Get("FlatSea") == true
+	shading = Settings.Get("WaveShading")
 	-- StaticWaves (or a flat sea): after one full pass nothing moves until the mesh re-centres or
 	-- the waves change. DynamicColors off: foam is written once the same way.
 	if (flatSea or Settings.Get("StaticWaves")) and staticDone and not moved then
@@ -1395,6 +1706,17 @@ local function update()
 	-- The mesh just re-centred: every vertex must be placed against the new origin THIS frame, or the
 	-- half-rate ring sits a tile off for a frame (the "chop" when moving fast).
 	local farPass = moved or frame % quality.FarEvery == 0
+	-- a re-centre of a few tiles eases in from the old surface; a jump (teleport, rebuild) does not
+	if moved then
+		if math.abs(ox - prevOx) <= 4 * snap and math.abs(oz - prevOz) <= 4 * snap then
+			captureMorph(ox - prevOx, oz - prevOz)
+			morphStart = started
+		else
+			table.clear(morphFrom)
+			morphStart = -math.huge
+		end
+	end
+	local easing = math.max(1 - (started - morphStart) / MORPH_TIME, 0)
 	for pass = 1, if farPass then 2 else 1 do
 		local list: { number } = if pass == 1 then near else far
 		for _, v in list do
@@ -1406,24 +1728,32 @@ local function update()
 			end
 			updated += 1
 			local ddx, ddz = wx - fx, wz - fz
-			local inv = 1 / (3 * (lodCell + math.max(math.sqrt(ddx * ddx + ddz * ddz) - lodInner, 0) * lodSlope))
+			local dist = math.sqrt(ddx * ddx + ddz * ddz)
+			local inv = 1 / (3 * math.min(lodCell + math.max(dist - lodInner, 0) * lodSlope, lodCap))
 			gatherAt(wx, wz)
-			local dx, dy, dz = waveAt(wx, wz, inv, t)
-			local fade = skinFade[v]
-			if fade < 1 then
+			local dx, dy, dz, gx, gz, sxx, sxz, szz = waveAt(wx, wz, inv, t)
+			local fade = 1
+			if dist > skinFadeFrom then
+				local ft = clamp((dist - skinFadeFrom) / (skinFadeTo - skinFadeFrom), 0, 1)
+				fade = 1 - ft * ft * (3 - 2 * ft)
 				dx, dy, dz = dx * fade, dy * fade, dz * fade
 			end
 			local damp = dampOf[v]
 			if damp then
 				dx, dy, dz = dx * damp, dy * damp, dz * damp
+				fade *= damp
 			end
 			local pin = pinned[v]
+			local free = true -- no dry region decides where this vertex goes: it may ease
 			if pin then
 				-- inside a dry region: sunk under its floor (a box above the water leaves it alone)
 				dx, dz = pin[1], pin[2]
 				dy = math.min(dy, pin[3] - seaLevel)
+				fade = 0 -- flat down there
+				free = false
 			elseif nearDry[v] then
 				-- outside, but the Gerstner shove would carry it in: clamp to the wall
+				free = false
 				for _, box in dryNear do
 					local cx, cz, shoved = Regions.PushOut(box, wx + dx, wz + dz)
 					if shoved then
@@ -1432,8 +1762,31 @@ local function update()
 					end
 				end
 			end
+			gx, gz, sxx, sxz, szz = gx * fade, gz * fade, sxx * fade, sxz * fade, szz * fade
+			local o = (v - 1) * VALUES
+			if moved then -- re-sampled here: start from the old surface
+				local from = morphFrom[o + 1]
+				if from and free then
+					morphOff[o + 1], morphOff[o + 2], morphOff[o + 3] =
+						from - dx, morphFrom[o + 2] - dy, morphFrom[o + 3] - dz
+					morphOff[o + 4], morphOff[o + 5] = morphFrom[o + 4] - gx, morphFrom[o + 5] - gz
+					morphOff[o + 6], morphOff[o + 7] = morphFrom[o + 6] - sxx, morphFrom[o + 7] - sxz
+					morphOff[o + 8] = morphFrom[o + 8] - szz
+				else
+					morphOff[o + 1] = nil
+				end
+			end
+			if easing > 0 and morphOff[o + 1] then
+				local e = easing
+				dx, dy, dz = dx + morphOff[o + 1] * e, dy + morphOff[o + 2] * e, dz + morphOff[o + 3] * e
+				gx, gz = gx + morphOff[o + 4] * e, gz + morphOff[o + 5] * e
+				sxx, sxz, szz = sxx + morphOff[o + 6] * e, sxz + morphOff[o + 7] * e, szz + morphOff[o + 8] * e
+			end
+			local d = (latticeOf[v] - 1) * VALUES
+			drawn[d + 1], drawn[d + 2], drawn[d + 3], drawn[d + 4] = dx, dy, dz, gx
+			drawn[d + 5], drawn[d + 6], drawn[d + 7], drawn[d + 8] = gz, sxx, sxz, szz
 			local bone = bones[v] :: Bone
-			bone.Transform = CFrame.new(ox + dx, dy, oz + dz)
+			bone.Transform = boneCFrame(ox + dx, dy, oz + dz, 1, gx, gz, sxx, sxz, szz)
 		end
 	end
 
@@ -1453,8 +1806,23 @@ local function update()
 			local shore = 0 -- 0..1 how much this point is in an obstacle's calming ring
 			local damp = foamDamp[f]
 			if damp then
+				-- peaks halfway across the ring (the "breaking" line), and only where a crest of the
+				-- incoming wave is passing: the wash moves with the waves instead of sitting there
+				shore = damp * (1 - damp) * 4 * clamp(2 * dy / lookMaxAmp, 0, 1)
 				dx, dy, dz = dx * damp, dy * damp, dz * damp
-				shore = damp * (1 - damp) * 4 -- peaks halfway across the ring: the "breaking" line
+			end
+			local pin = foamPin[f]
+			if pin then -- inside a dry region: at its wall, sunk under its floor
+				dx, dz = pin[1], pin[2]
+				dy = math.min(dy, pin[3] - seaLevel)
+			else -- outside: the waves' sideways shove never carries it in
+				for _, box in dryNear do
+					local cx, cz, shoved = Regions.PushOut(box, wx + dx, wz + dz)
+					if shoved then
+						dx, dz = cx - wx, cz - wz
+						break
+					end
+				end
 			end
 			fm:SetPosition(foamIds[f], Vector3.new(wx + dx, dy, wz + dz))
 			if not colorPass then
@@ -1462,13 +1830,23 @@ local function update()
 			end
 			local foam = clamp((dy / lookMaxAmp - lookFoamStart) / math.max(lookFoamFull - lookFoamStart, 1e-3), 0, 1)
 			foam = math.max(foam, shore * 0.6) -- wash against obstacles
+			-- fades out toward the lattice's edge, measured from the camera so it never jumps
+			local edge = clamp(
+				(math.max(math.abs(wx - fx), math.abs(wz - fz)) - foamFadeFrom) / (foamFadeTo - foamFadeFrom),
+				0,
+				1
+			)
+			local fade = 1 - edge * edge * (3 - 2 * edge)
 			-- quantised to 64 steps and only written when the step changes: the mesh upload is the
 			-- expensive part, and most frames nothing here changed
-			local key = nightKey + floor(foam * 63) + (if sameLayers then 0 else 64 * floor(lookFoamOpacity * 63))
+			local key = nightKey
+				+ floor(foam * 63)
+				+ 64 * floor(fade * 63)
+				+ (if sameLayers then 0 else 4096 * floor(lookFoamOpacity * 63))
 			if key ~= foamKeys[f] then
 				foamKeys[f] = key
 				fm:SetColor(foamColorIds[f], Color3.new(foamR * night, foamG * night, foamB * night))
-				local alpha = (lookWebOpacity + (lookFoamOpacity - lookWebOpacity) * foam) * foamFade[f]
+				local alpha = (lookWebOpacity + (lookFoamOpacity - lookWebOpacity) * foam) * fade
 				if alpha ~= foamAlphas[f] then
 					foamAlphas[f] = alpha
 					fm:SetColorAlpha(foamColorIds[f], alpha)
@@ -1477,15 +1855,33 @@ local function update()
 		end
 	end
 
-	-- the film: the same waves on its own coarse lattice (bones, so nothing is written to its mesh)
+	-- the film: the same waves on the same vertices as the water under it (bones, so nothing is written to its mesh)
 	for j, bone in filmBones do
 		local wx, wz = ox + filmX[j], oz + filmZ[j]
 		if not behindPass and (wx - fx) * lookX + (wz - fz) * lookZ < -BEHIND_MARGIN then
 			continue
 		end
 		gatherAt(wx, wz)
-		local dx, dy, dz = waveAt(wx, wz, fineInv, t)
-		bone.Transform = CFrame.new(ox + dx, dy, oz + dz)
+		local dx, dy, dz, gx, gz, sxx, sxz, szz = waveAt(wx, wz, fineInv, t)
+		local damp = filmDamp[j] or 1 -- calmed by obstacles like the water under it
+		if damp < 1 then
+			dx, dy, dz = dx * damp, dy * damp, dz * damp
+		end
+		local pin = filmPin[j]
+		if pin then -- inside a dry region: at its wall, sunk under its floor
+			dx, dz = pin[1], pin[2]
+			dy = math.min(dy, pin[3] - seaLevel)
+			damp = 0
+		else -- outside: the waves' sideways shove never carries it in
+			for _, box in dryNear do
+				local cx, cz, shoved = Regions.PushOut(box, wx + dx, wz + dz)
+				if shoved then
+					dx, dz = cx - wx, cz - wz
+					break
+				end
+			end
+		end
+		bone.Transform = boneCFrame(ox + dx, dy, oz + dz, damp, gx, gz, sxx, sxz, szz)
 	end
 
 	if not moved then -- a re-centre frame skips the behind-camera vertices; the next full pass counts
@@ -1537,15 +1933,24 @@ function Renderer.Init(into: Instance?)
 		local entry = Settings.Spec[name]
 		if (entry and entry.Rebuild) or name == "FlatSea" then
 			task.spawn(build)
-		elseif name == "StaticWaves" or name == "DynamicColors" or name == "DynamicLighting" then
+		elseif
+			name == "StaticWaves"
+			or name == "DynamicColors"
+			or name == "DynamicLighting"
+			or name == "WaveShading"
+		then
 			staticDone, coloredOnce = false, false
 		elseif
 			name == "Reflectance"
+			or name == "WaterTransparency"
 			or name == "WaterMaterial"
 			or name == "WaterTexture"
 			or name == "FoamTexture"
 			or name == "FoamStyle"
 			or name == "Lit"
+			or name == "SurfaceDetail"
+			or name == "RippleStrength"
+			or name == "WaterRoughness"
 		then
 			applyLook()
 		elseif name == "FilmOpacity" then
@@ -1584,7 +1989,6 @@ function Renderer.Stop()
 		return
 	end
 	running = false
-	showPlaceholders()
 	buildToken += 1
 	RunService:UnbindFromRenderStep(BIND_NAME)
 	if connection then
@@ -1597,6 +2001,7 @@ function Renderer.Stop()
 	end
 	destroyMesh()
 	hideFlat()
+	showPlaceholders() -- after hideFlat, which hides them: the sea is gone, the flat water is back
 	budgetLevel = 0
 	climbDelay, nextClimb, slowSince, building = CLIMB_MIN, math.huge, nil, false
 	if tintFrame then
@@ -1607,6 +2012,7 @@ function Renderer.Stop()
 		tintFrame = nil
 	end
 	SurfaceTexture.Stop()
+	SurfaceDetail.Stop()
 end
 
 return Renderer

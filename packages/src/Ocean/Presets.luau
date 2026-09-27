@@ -118,39 +118,52 @@ Presets.Physics = {
 }
 
 Presets.Visual = {
-	-- like Roblox's own water: its blue, a touch of reflection, faint crest foam
+	-- like Roblox's terrain water: its teal (Terrain.WaterColor 12, 84, 92), glossy with the faintest
+	-- moving ripples, solid white foam over most of each crest, opaque like every preset. Solid foam, not
+	-- Animated: the ripples' two maps and the foam's flipbook together overrun a client's budget.
 	Classic = {
-		ShallowColor = Color3.fromRGB(20, 110, 160),
-		DeepColor = Color3.fromRGB(12, 84, 131),
+		ShallowColor = Color3.fromRGB(18, 98, 108),
+		DeepColor = Color3.fromRGB(12, 84, 92),
 		FoamColor = Color3.fromRGB(255, 255, 255),
-		UnderwaterTint = Color3.fromRGB(12, 84, 131),
-		UnderwaterOpacity = 1,
-		Reflectance = 0.05,
-		FoamStyle = "Animated",
-		FoamStart = 0.45,
-		FoamFull = 0.9,
-		FoamOpacity = 0.35,
-		FilmOpacity = 0.05,
+		UnderwaterTint = Color3.fromRGB(12, 84, 92),
+		UnderwaterOpacity = 0.75, -- a little see-through: the player can still see underwater
+		Reflectance = 0.15,
+		WaterTransparency = 0,
+		FoamStyle = "Solid",
+		FoamStart = 0.04,
+		FoamFull = 0.58,
+		FoamOpacity = 0.75,
+		FilmOpacity = 0,
 		SplashRate = 2,
 		WaterMaterial = "SmoothPlastic",
 		WaterTexture = "",
 		FoamTexture = "",
+		WaveShading = 1,
+		SurfaceDetail = "Ripples",
+		RippleStrength = 0.04,
+		WaterRoughness = 0.1,
 	},
 	-- a flat cartoon water build: a matte Slate slab in sky blue under a deeper-blue film with a
-	-- faint tiled pattern
+	-- faint tiled pattern, and Stylized's solid white crest foam
 	Cartoony = {
 		ShallowColor = Color3.fromRGB(4, 175, 236),
 		DeepColor = Color3.fromRGB(9, 137, 207),
 		FoamColor = Color3.fromRGB(255, 255, 255),
 		UnderwaterTint = Color3.fromRGB(9, 137, 207),
-		UnderwaterOpacity = 1,
+		UnderwaterOpacity = 0.75, -- a little see-through: the player can still see underwater
 		Reflectance = 0,
-		FoamStyle = "None",
+		WaterTransparency = 0,
+		FoamStyle = "Solid",
+		FoamStart = 0.55,
+		FoamFull = 0.85,
+		FoamOpacity = 1,
 		FilmOpacity = 0.25,
 		SplashRate = 8,
 		WaterMaterial = "Slate",
 		WaterTexture = "rbxassetid://6126332496",
 		FoamTexture = "",
+		WaveShading = 0, -- flat cartoon colour: the waves read by their outline and the film
+		SurfaceDetail = "None",
 	},
 	-- bright flat bands with solid white foam
 	Stylized = {
@@ -158,8 +171,9 @@ Presets.Visual = {
 		DeepColor = Color3.fromRGB(20, 120, 190),
 		FoamColor = Color3.fromRGB(255, 255, 255),
 		UnderwaterTint = Color3.fromRGB(20, 120, 190),
-		UnderwaterOpacity = 1,
+		UnderwaterOpacity = 0.75, -- a little see-through: the player can still see underwater
 		Reflectance = 0,
+		WaterTransparency = 0,
 		FoamStyle = "Solid",
 		FoamStart = 0.55,
 		FoamFull = 0.85,
@@ -169,23 +183,32 @@ Presets.Visual = {
 		WaterMaterial = "Slate",
 		WaterTexture = "",
 		FoamTexture = "",
+		WaveShading = 0, -- flat bands
+		SurfaceDetail = "None",
 	},
+	-- lit per pixel: shaded waves, animated ripples on a glossy surface for the sun glints and the
+	-- sky reflection (a low roughness does that, not Reflectance, which mirrors the sky evenly)
 	Realistic = {
 		ShallowColor = Color3.fromRGB(38, 118, 148),
 		DeepColor = Color3.fromRGB(10, 52, 92),
 		FoamColor = Color3.fromRGB(236, 244, 246),
 		UnderwaterTint = Color3.fromRGB(10, 52, 92),
-		UnderwaterOpacity = 1,
-		Reflectance = 0.35,
+		UnderwaterOpacity = 0.75, -- a little see-through: the player can still see underwater
+		Reflectance = 0.1,
+		WaterTransparency = 0,
 		FoamStyle = "Animated",
 		FoamStart = 0.3,
 		FoamFull = 0.7,
 		FoamOpacity = 0.8,
 		FilmOpacity = 0.03,
 		SplashRate = 4,
-		WaterMaterial = "Snow",
+		WaterMaterial = "SmoothPlastic",
 		WaterTexture = "",
 		FoamTexture = "",
+		WaveShading = 1,
+		SurfaceDetail = "Ripples",
+		RippleStrength = 0.4,
+		WaterRoughness = 0.1,
 	},
 }
 
