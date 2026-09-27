@@ -180,6 +180,22 @@ Settings.List = {
 		Hint = "How strongly the underwater tint covers the view (0 = none)",
 	}),
 	num("Reflectance", 0.05, 0, 1, 0.01, "Visuals", { Hint = "How much of the sky the surface mirrors" }),
+	num("WaveShading", 1, 0, 2, 0.05, "Visuals", {
+		Hint = "How strongly the waves' slopes catch the light: faces toward the sun brighten, the far sides darken (0 = lit like a flat sheet)",
+	}),
+	{
+		Name = "SurfaceDetail",
+		Default = "None",
+		Options = { "Ripples", "Custom", "None" },
+		Section = "Visuals",
+		Hint = "Small ripples lit per pixel, finer than the waves: Ripples = the built-in animated ones; Custom = a SurfaceAppearance named WaterSurface you put inside the Ocean module; None = plain WaterMaterial",
+	},
+	num("RippleStrength", 0.35, 0, 1, 0.01, "Visuals", {
+		Hint = "How choppy the Ripples are (their average slope)",
+	}),
+	num("WaterRoughness", 0.15, 0, 1, 0.01, "Visuals", {
+		Hint = "With Ripples: 0 = glassy, sharp sun glints and sky reflection; 1 = matte",
+	}),
 	{
 		Name = "FoamStyle",
 		Default = "Animated",
@@ -293,7 +309,7 @@ Settings.List = {
 		"Performance",
 		{ Rebuild = true, Hint = "Coarser cells past the inner ring, each Growth times larger than the last" }
 	),
-	num("Growth", 1.2, 1.02, 1.6, 0.01, "Performance", {
+	num("Growth", 1.2, 1.02, 5, 0.01, "Performance", {
 		Rebuild = true,
 		Hint = "How much larger each outer cell is than the one before it",
 	}),

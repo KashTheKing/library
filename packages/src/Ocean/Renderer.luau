@@ -22,8 +22,9 @@
 	named OceanSurface that carries the stats attributes.
 
 	Budget: a client may hold only ~8 EditableMesh / EditableImage objects, whatever their size.
-	4 tiles + static + foam + film = 7 leaves one for the foam's animated image. When even that
-	is refused the build steps down: no film, then no foam, then a single tile.
+	4 tiles + static + foam + film = 7 leaves one for the foam's animated image; SurfaceDetail
+	Ripples adds two more. When that is refused the build steps down: no film, then no foam (and
+	no ripples), then a single tile.
 
 	LOD: the grid is uniform (CellSize) for InnerCells around the camera, then every cell outward
 	is Growth x bigger, and the last one stretches to RenderDistance. Each wave is faded out on
@@ -41,14 +42,17 @@
 
 	Look: three parts.
 	  base: the whole lattice, flat SmoothPlastic in the water's colour (Part.Color: the vertex
-	        colours are white, so the tint and the night darkening never touch the mesh). Lit, so
-	        the skinned normals give the crests and troughs their shading.
+	        colours are white, so the tint and the night darkening never touch the mesh). Lit, and
+	        shaded by its bones' ROTATIONS: skinning turns a vertex's normal by its bone's rotation,
+	        never by its offset, so every bone is also turned onto the displaced surface's normal
+	        (see boneCFrame). Optionally a SurfaceAppearance on top with ripples lit per pixel
+	        (SurfaceDetail.luau).
 	  foam: a coarse near-camera lattice (2 x CellSize, InnerCells wide) with the animated
 	        foam-ring texture; per-vertex ALPHA is the foam amount. Its alpha has to be written,
 	        and a write to a SKINNED mesh is ~6x the cost of one to a plain mesh, so this one is
 	        NOT skinned: it is its own small plain mesh whose 400-odd positions and alphas are
 	        written outright (about 1 ms), never the base.
-	  film: the same coarse lattice, skinned, a translucent skin in the water's own colour at
+	  film: the same lattice, skinned, a translucent skin in the water's own colour at
 	        FilmOpacity, so anything crossing the surface gets a clear waterline.
 	Nothing writes to a skinned mesh after it is built: the textures tile by a multiple of the
 	cell and the mesh re-centres by that tile, so the UVs never need to move either.
@@ -66,6 +70,7 @@ local RunService = game:GetService("RunService")
 
 local Regions = require(script.Parent.Regions)
 local Settings = require(script.Parent.Settings)
+local SurfaceDetail = require(script.Parent.SurfaceDetail)
 local SurfaceTexture = require(script.Parent.SurfaceTexture)
 local Waves = require(script.Parent.Waves)
 
@@ -191,7 +196,7 @@ local foamZ: { number } = {}
 local foamIds: { number } = {}
 local foamColorIds: { number } = {}
 local foamFade: { number } = {} -- foam vertex -> 1 inside, easing to 0 over the outer third
--- the film: a coarse lattice (2 x fine cell) over the full-detail area, skinned and tiled. Index j.
+-- the film: the foam's lattice (the base's own vertices over the inner half), skinned. Index j.
 local filmBones: { Bone } = {}
 local filmX: { number } = {}
 local filmZ: { number } = {}
@@ -199,6 +204,7 @@ local lastSeaLevel = math.huge -- the parts' height last written
 local foamAlphas: { number } = {} -- last alpha written per foam vertex
 local foamKeys: { number } = {} -- quantised colour last written per foam vertex
 local foamDamp: { number? } = {} -- foam vertex -> obstacle damp, nil = open water
+local filmDamp: { number? } = {} -- film bone -> obstacle damp, nil = open water
 -- Dry regions sink the mesh: every vertex inside a box drops to just under the box bottom, and the
 -- ring of them next to the outside is also pushed out to the wall, so the surface dives from the
 -- water line down the outside of the wall and runs flat underneath - no hole, no water indoors.
@@ -209,6 +215,8 @@ local pinned: { { number }? } = {} -- vertex -> { dx, dz, y } world offset to th
 local dampOf: { number? } = {} -- vertex -> damp factor, nil = open water
 local nearDry: { boolean? } = {} -- vertex -> true when within shove reach of a dry box footprint
 local dryNear: { Regions.Box } = {} -- the boxes near the mesh, for those vertices
+local foamPin: { { number }? } = {} -- foam vertex inside a dry box -> { dx, dz, y } like `pinned`
+local filmPin: { { number }? } = {} -- film bone inside a dry box, the same
 local staticTimer = 0
 local staticDone = false -- StaticWaves: one full position pass has been written since the last change
 local coloredOnce = false -- DynamicColors off: one colour pass has been written
@@ -255,6 +263,7 @@ local function applyQuality()
 	tile = qCell * TILE_CELLS
 	snap = tile
 	SurfaceTexture.SetSmooth(quality.SmoothFoam)
+	SurfaceDetail.SetSmooth(quality.SmoothFoam)
 end
 
 local function buildAxis(): ({ number }, { number })
@@ -264,9 +273,12 @@ local function buildAxis(): ({ number }, { number })
 	local half = { 0 } -- coordinates from the centre outward
 	local sizes = {} -- sizes[i] = cell between half[i] and half[i + 1]
 	local size = cell
+	-- the animated area stops at a quarter of RenderDistance however large Growth is: past that
+	-- the cells left share what remains evenly
+	local reach = Settings.Get("RenderDistance") / 4
 	for i = 1, inner + outer do
 		if i > inner then
-			size *= growth
+			size = math.min(size * growth, math.max((reach - half[i]) / (inner + outer - i + 1), cell))
 		end
 		sizes[i] = size
 		half[i + 1] = half[i] + size
@@ -338,6 +350,17 @@ local function surfaceParts(): { MeshPart }
 	return list
 end
 
+-- Air and Water are terrain-only: a part cannot take them
+local function partMaterials(): { Enum.Material }
+	local items = {}
+	for _, item in Enum.Material:GetEnumItems() do
+		if item ~= Enum.Material.Air and item ~= Enum.Material.Water then
+			table.insert(items, item)
+		end
+	end
+	return items
+end
+
 -- WaterMaterial by name: an Enum.Material or a MaterialVariant in MaterialService (returned as the
 -- second value with its base); an unknown name lands on the closest (prefix / substring), else the default.
 local function materialFor(name: string): (Enum.Material, string)
@@ -347,7 +370,7 @@ local function materialFor(name: string): (Enum.Material, string)
 			return variant.BaseMaterial, variant.Name
 		end
 	end
-	local items = Enum.Material:GetEnumItems()
+	local items = partMaterials()
 	for _, item in items do
 		if item.Name:lower() == wanted then
 			return item, ""
@@ -385,6 +408,9 @@ local function applyLook()
 			foam.TextureContent = image or Content.none -- Solid (or a blank texture id): plain colour
 		end
 	end
+	-- ripples need the lit water, and go with the foam when the device's budget is tight
+	local detail = if Settings.Get("Lit") and budgetLevel < 2 then Settings.Get("SurfaceDetail") else "None"
+	SurfaceDetail.Apply(detail, surfaceParts())
 end
 
 -- 1 by day, NightBrightness once the sun is down. The ocean only READS the sky; it never sets it.
@@ -454,25 +480,23 @@ local function refreshActive()
 end
 
 -- The plugin's flat placeholder water is hidden (locally) while the wave mesh runs, and left
--- showing when the sea is flat: then it IS the sea.
-local hiddenPlaceholders: { [BasePart]: number } = {}
-
+-- showing when the sea is flat: then it IS the sea. Nothing else uses the modifier on it, so
+-- showing is always back to 0: a slab hidden by an earlier run of this module (a reinstall, a
+-- plugin reload) comes back too.
 local function hidePlaceholders()
 	for _, placeholder in CollectionService:GetTagged(PLACEHOLDER_TAG) do
-		if placeholder:IsA("BasePart") and hiddenPlaceholders[placeholder] == nil then
-			hiddenPlaceholders[placeholder] = placeholder.LocalTransparencyModifier
+		if placeholder:IsA("BasePart") then
 			placeholder.LocalTransparencyModifier = 1 -- local only: the saved part is untouched
 		end
 	end
 end
 
 local function showPlaceholders()
-	for placeholder, modifier in hiddenPlaceholders do
-		if placeholder.Parent then
-			placeholder.LocalTransparencyModifier = modifier
+	for _, placeholder in CollectionService:GetTagged(PLACEHOLDER_TAG) do
+		if placeholder:IsA("BasePart") then
+			placeholder.LocalTransparencyModifier = 0
 		end
 	end
-	table.clear(hiddenPlaceholders)
 end
 
 local function destroyMesh()
@@ -706,13 +730,10 @@ local function buildOnce(token: number)
 		end
 		fm, foamVerts, newFoamIds, foamColors = latticeMesh(fineHalf, allFoam, fn, true, false)
 	end
-	-- film: the coarse lattice over the whole full-detail area, skinned and tiled like the base
-	local coarse = {}
-	for c = -lodInner, lodInner + 1e-3, 2 * qCell do
-		table.insert(coarse, c)
-	end
-	local cn = #coarse
-	-- one mesh: at most 625 vertices, and every mesh counts against the client's budget
+	-- film: the foam's lattice, skinned. Its vertices are the base's own (same spacing, same
+	-- places), so the water never pokes through it between two of them. One mesh: every mesh
+	-- counts against the client's budget.
+	local coarse, cn = fineHalf, fn
 	local newFilmMeshes, filmVerts = {}, {}
 	if quality.Film and Settings.Get("Highlights") and budgetLevel < 1 then
 		local allCoarse = {}
@@ -720,11 +741,12 @@ local function buildOnce(token: number)
 			table.insert(allCoarse, c)
 		end
 		local sm, verts, _, colors = latticeMesh(coarse, allCoarse, cn, true, true)
-		local fadeStart = lodInner * 0.6
+		local filmEdge = lodInner / 2
+		local fadeStart = filmEdge * 0.6
 		-- alpha fades out over the outer third so the edge never shows
 		for k, L in verts do
 			local edge = math.max(math.abs(coarse[(L - 1) % cn + 1]), math.abs(coarse[(L - 1) // cn + 1]))
-			local t = math.clamp((edge - fadeStart) / (lodInner - fadeStart), 0, 1)
+			local t = math.clamp((edge - fadeStart) / (filmEdge - fadeStart), 0, 1)
 			sm:SetColorAlpha(colors[k], 1 - t * t * (3 - 2 * t))
 		end
 		newFilmMeshes[1], filmVerts[1] = sm, verts
@@ -903,6 +925,7 @@ local warnedNoMesh = false
 local flatPart: Part? = nil
 
 local function showFlat()
+	SurfaceDetail.Stop() -- no wave mesh, no parts for the ripples: free their maps
 	showPlaceholders()
 	Waves.SetLocalFlat(true)
 	if #CollectionService:GetTagged(PLACEHOLDER_TAG) > 0 then
@@ -1060,6 +1083,19 @@ local function stepDown()
 	task.spawn(build)
 end
 
+-- The pin of a foam or film vertex inside a dry box: out to the nearest wall and sunk under the
+-- floor, so the layer is cut out of the box like the water under it.
+local function pinFor(boxes: { Regions.Box }, wx: number, wz: number): { number }?
+	for _, box in boxes do
+		local bx, bz = wx - box.X, wz - box.Z
+		if bx * bx + bz * bz < box.Reach * box.Reach and Regions.CoversXZ(box, wx, wz) then
+			local px, pz = Regions.PushOut(box, wx, wz)
+			return { px - wx, pz - wz, box.Bottom - DRY_SINK }
+		end
+	end
+	return nil
+end
+
 -- Recompute the per-vertex static fields for the mesh centred at (ox, oz): obstacle damping,
 -- dry-region pins and the shove-clamp candidates.
 local function refreshStatic(ox: number, oz: number)
@@ -1067,6 +1103,9 @@ local function refreshStatic(ox: number, oz: number)
 	table.clear(dampOf)
 	table.clear(nearDry)
 	table.clear(foamDamp)
+	table.clear(filmDamp)
+	table.clear(foamPin)
+	table.clear(filmPin)
 	if not container then
 		return
 	end
@@ -1086,11 +1125,23 @@ local function refreshStatic(ox: number, oz: number)
 				foamDamp[f] = damp
 			end
 		end
+		for j = 1, #filmX do
+			local damp = Waves.Damp(obstacles, ox + filmX[j], oz + filmZ[j])
+			if damp < 1 then
+				filmDamp[j] = damp
+			end
+		end
 	end
 	dryNear = Regions.Near(ox, oz, animatedRadius * 1.5)
 	local boxes = Regions.List()
 	if #boxes == 0 then
 		return
+	end
+	for f = 1, #foamX do
+		foamPin[f] = pinFor(boxes, ox + foamX[f], oz + foamZ[f])
+	end
+	for j = 1, #filmX do
+		filmPin[j] = pinFor(boxes, ox + filmX[j], oz + filmZ[j])
 	end
 	local n = gridN
 	local inBox: { [number]: Regions.Box } = {} -- by lattice point: shared vertices agree
@@ -1192,6 +1243,10 @@ local function applyTint(focus: Vector3)
 	end
 	if under then
 		local color, transparency = Settings.Get("UnderwaterTint"), 1 - Settings.Get("UnderwaterOpacity")
+		if Settings.Get("DynamicLighting") then -- darkens with the sun, like the water itself
+			local night = nightFactor()
+			color = Color3.new(color.R * night, color.G * night, color.B * night)
+		end
 		if tint.BackgroundColor3 ~= color then
 			tint.BackgroundColor3 = color
 		end
@@ -1235,13 +1290,22 @@ local function gatherAt(wx: number, wz: number)
 end
 
 -- Gerstner sum at a world point with the LOD fade for that point's spacing (inv); no damping.
-local function waveAt(wx: number, wz: number, inv: number, t: number): (number, number, number)
+-- Returns the displacement, then the five sums the surface's normal is made of (see boneCFrame):
+-- the height's slope along X and Z, and how much the sideways shove stretches or squeezes the
+-- surface (XX, XZ, ZZ). All eight scale together with the wave amplitudes.
+local function waveAt(
+	wx: number,
+	wz: number,
+	inv: number,
+	t: number
+): (number, number, number, number, number, number, number, number)
 	if flatSea then -- FlatSea: the same sea, its surface level (the tiles rest at zero displacement)
-		return 0, 0, 0
+		return 0, 0, 0, 0, 0, 0, 0, 0
 	end
 	local sets, weights = Waves.LayerSets, Waves.LayerWeights
 	local cos, sin = math.cos, math.sin
 	local dx, dy, dz = 0, 0, 0
+	local gx, gz, sxx, sxz, szz = 0, 0, 0, 0, 0
 	for i = 1, gCount do
 		local set, layerWeight = sets[i], weights[i]
 		local length, kx, kz, omega, amp, dirX, dirZ =
@@ -1252,13 +1316,49 @@ local function waveAt(wx: number, wz: number, inv: number, t: number): (number, 
 				local f = kx[w] * wx + kz[w] * wz - omega[w] * t
 				local a = amp[w] * layerWeight * (if lod > 1 then 1 else lod)
 				local c = cos(f) * a
-				dx += dirX[w] * c
-				dz += dirZ[w] * c
-				dy += sin(f) * a
+				local s = sin(f) * a
+				local ux, uz = dirX[w], dirZ[w]
+				local waveX, waveZ = kx[w], kz[w]
+				dx += ux * c
+				dz += uz * c
+				dy += s
+				gx += waveX * c
+				gz += waveZ * c
+				sxx += ux * waveX * s
+				sxz += ux * waveZ * s
+				szz += uz * waveZ * s
 			end
 		end
 	end
-	return dx, dy, dz
+	return dx, dy, dz, gx, gz, sxx, sxz, szz
+end
+
+-- The bone of a vertex at (x, y, z) in its part's space: the offset AND a turn. Skinning lights a
+-- vertex by its bone's rotation, never its offset, so a bone that only moved would leave the whole
+-- sea lit like a flat sheet. The turn takes +Y onto the displaced surface's exact normal: the
+-- cross product of its two tangents, (1 - XX, slope X, -XZ) along X and (-XZ, slope Z, 1 - ZZ)
+-- along Z. `m` is how much of the wave reaches this vertex (fades, damping; 0 = flat), times
+-- WaveShading. The quaternion is the shortest turn from +Y onto that normal.
+local shading = 1 -- WaveShading, read once per update
+local function boneCFrame(
+	x: number,
+	y: number,
+	z: number,
+	m: number,
+	gx: number,
+	gz: number,
+	sxx: number,
+	sxz: number,
+	szz: number
+): CFrame
+	m *= shading
+	gx, gz, sxx, sxz, szz = gx * m, gz * m, sxx * m, sxz * m, szz * m
+	local nx = -gz * sxz - gx * (1 - szz)
+	local ny = math.max((1 - sxx) * (1 - szz) - sxz * sxz, 0.05) -- a folding crest never turns over
+	local nz = -gx * sxz - gz * (1 - sxx)
+	local w = math.sqrt(nx * nx + ny * ny + nz * nz) + ny
+	local s = 1 / math.sqrt(nx * nx + nz * nz + w * w)
+	return CFrame.new(x, y, z, nz * s, 0, -nx * s, w * s)
 end
 
 -- World Y of the surface as this client draws it at (x, z): the wave sum of the mesh on screen
@@ -1382,6 +1482,7 @@ local function update()
 
 	frame += 1
 	flatSea = Settings.Get("FlatSea") == true
+	shading = Settings.Get("WaveShading")
 	-- StaticWaves (or a flat sea): after one full pass nothing moves until the mesh re-centres or
 	-- the waves change. DynamicColors off: foam is written once the same way.
 	if (flatSea or Settings.Get("StaticWaves")) and staticDone and not moved then
@@ -1408,7 +1509,7 @@ local function update()
 			local ddx, ddz = wx - fx, wz - fz
 			local inv = 1 / (3 * (lodCell + math.max(math.sqrt(ddx * ddx + ddz * ddz) - lodInner, 0) * lodSlope))
 			gatherAt(wx, wz)
-			local dx, dy, dz = waveAt(wx, wz, inv, t)
+			local dx, dy, dz, gx, gz, sxx, sxz, szz = waveAt(wx, wz, inv, t)
 			local fade = skinFade[v]
 			if fade < 1 then
 				dx, dy, dz = dx * fade, dy * fade, dz * fade
@@ -1416,12 +1517,14 @@ local function update()
 			local damp = dampOf[v]
 			if damp then
 				dx, dy, dz = dx * damp, dy * damp, dz * damp
+				fade *= damp
 			end
 			local pin = pinned[v]
 			if pin then
 				-- inside a dry region: sunk under its floor (a box above the water leaves it alone)
 				dx, dz = pin[1], pin[2]
 				dy = math.min(dy, pin[3] - seaLevel)
+				fade = 0 -- flat down there
 			elseif nearDry[v] then
 				-- outside, but the Gerstner shove would carry it in: clamp to the wall
 				for _, box in dryNear do
@@ -1433,7 +1536,7 @@ local function update()
 				end
 			end
 			local bone = bones[v] :: Bone
-			bone.Transform = CFrame.new(ox + dx, dy, oz + dz)
+			bone.Transform = boneCFrame(ox + dx, dy, oz + dz, fade, gx, gz, sxx, sxz, szz)
 		end
 	end
 
@@ -1453,8 +1556,23 @@ local function update()
 			local shore = 0 -- 0..1 how much this point is in an obstacle's calming ring
 			local damp = foamDamp[f]
 			if damp then
+				-- peaks halfway across the ring (the "breaking" line), and only where a crest of the
+				-- incoming wave is passing: the wash moves with the waves instead of sitting there
+				shore = damp * (1 - damp) * 4 * clamp(2 * dy / lookMaxAmp, 0, 1)
 				dx, dy, dz = dx * damp, dy * damp, dz * damp
-				shore = damp * (1 - damp) * 4 -- peaks halfway across the ring: the "breaking" line
+			end
+			local pin = foamPin[f]
+			if pin then -- inside a dry region: at its wall, sunk under its floor
+				dx, dz = pin[1], pin[2]
+				dy = math.min(dy, pin[3] - seaLevel)
+			else -- outside: the waves' sideways shove never carries it in
+				for _, box in dryNear do
+					local cx, cz, shoved = Regions.PushOut(box, wx + dx, wz + dz)
+					if shoved then
+						dx, dz = cx - wx, cz - wz
+						break
+					end
+				end
 			end
 			fm:SetPosition(foamIds[f], Vector3.new(wx + dx, dy, wz + dz))
 			if not colorPass then
@@ -1477,15 +1595,33 @@ local function update()
 		end
 	end
 
-	-- the film: the same waves on its own coarse lattice (bones, so nothing is written to its mesh)
+	-- the film: the same waves on the same vertices as the water under it (bones, so nothing is written to its mesh)
 	for j, bone in filmBones do
 		local wx, wz = ox + filmX[j], oz + filmZ[j]
 		if not behindPass and (wx - fx) * lookX + (wz - fz) * lookZ < -BEHIND_MARGIN then
 			continue
 		end
 		gatherAt(wx, wz)
-		local dx, dy, dz = waveAt(wx, wz, fineInv, t)
-		bone.Transform = CFrame.new(ox + dx, dy, oz + dz)
+		local dx, dy, dz, gx, gz, sxx, sxz, szz = waveAt(wx, wz, fineInv, t)
+		local damp = filmDamp[j] or 1 -- calmed by obstacles like the water under it
+		if damp < 1 then
+			dx, dy, dz = dx * damp, dy * damp, dz * damp
+		end
+		local pin = filmPin[j]
+		if pin then -- inside a dry region: at its wall, sunk under its floor
+			dx, dz = pin[1], pin[2]
+			dy = math.min(dy, pin[3] - seaLevel)
+			damp = 0
+		else -- outside: the waves' sideways shove never carries it in
+			for _, box in dryNear do
+				local cx, cz, shoved = Regions.PushOut(box, wx + dx, wz + dz)
+				if shoved then
+					dx, dz = cx - wx, cz - wz
+					break
+				end
+			end
+		end
+		bone.Transform = boneCFrame(ox + dx, dy, oz + dz, damp, gx, gz, sxx, sxz, szz)
 	end
 
 	if not moved then -- a re-centre frame skips the behind-camera vertices; the next full pass counts
@@ -1537,7 +1673,12 @@ function Renderer.Init(into: Instance?)
 		local entry = Settings.Spec[name]
 		if (entry and entry.Rebuild) or name == "FlatSea" then
 			task.spawn(build)
-		elseif name == "StaticWaves" or name == "DynamicColors" or name == "DynamicLighting" then
+		elseif
+			name == "StaticWaves"
+			or name == "DynamicColors"
+			or name == "DynamicLighting"
+			or name == "WaveShading"
+		then
 			staticDone, coloredOnce = false, false
 		elseif
 			name == "Reflectance"
@@ -1546,6 +1687,9 @@ function Renderer.Init(into: Instance?)
 			or name == "FoamTexture"
 			or name == "FoamStyle"
 			or name == "Lit"
+			or name == "SurfaceDetail"
+			or name == "RippleStrength"
+			or name == "WaterRoughness"
 		then
 			applyLook()
 		elseif name == "FilmOpacity" then
@@ -1584,7 +1728,6 @@ function Renderer.Stop()
 		return
 	end
 	running = false
-	showPlaceholders()
 	buildToken += 1
 	RunService:UnbindFromRenderStep(BIND_NAME)
 	if connection then
@@ -1597,6 +1740,7 @@ function Renderer.Stop()
 	end
 	destroyMesh()
 	hideFlat()
+	showPlaceholders() -- after hideFlat, which hides them: the sea is gone, the flat water is back
 	budgetLevel = 0
 	climbDelay, nextClimb, slowSince, building = CLIMB_MIN, math.huge, nil, false
 	if tintFrame then
@@ -1607,6 +1751,7 @@ function Renderer.Stop()
 		tintFrame = nil
 	end
 	SurfaceTexture.Stop()
+	SurfaceDetail.Stop()
 end
 
 return Renderer

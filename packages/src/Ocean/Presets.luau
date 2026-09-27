@@ -135,6 +135,10 @@ Presets.Visual = {
 		WaterMaterial = "SmoothPlastic",
 		WaterTexture = "",
 		FoamTexture = "",
+		WaveShading = 1,
+		SurfaceDetail = "None",
+		RippleStrength = 0.35,
+		WaterRoughness = 0.15,
 	},
 	-- a flat cartoon water build: a matte Slate slab in sky blue under a deeper-blue film with a
 	-- faint tiled pattern
@@ -151,6 +155,8 @@ Presets.Visual = {
 		WaterMaterial = "Slate",
 		WaterTexture = "rbxassetid://6126332496",
 		FoamTexture = "",
+		WaveShading = 0, -- flat cartoon colour: the waves read by their outline and the film
+		SurfaceDetail = "None",
 	},
 	-- bright flat bands with solid white foam
 	Stylized = {
@@ -169,23 +175,31 @@ Presets.Visual = {
 		WaterMaterial = "Slate",
 		WaterTexture = "",
 		FoamTexture = "",
+		WaveShading = 0, -- flat bands
+		SurfaceDetail = "None",
 	},
+	-- lit per pixel: shaded waves, animated ripples on a glossy surface for the sun glints and the
+	-- sky reflection (a low roughness does that, not Reflectance, which mirrors the sky evenly)
 	Realistic = {
 		ShallowColor = Color3.fromRGB(38, 118, 148),
 		DeepColor = Color3.fromRGB(10, 52, 92),
 		FoamColor = Color3.fromRGB(236, 244, 246),
 		UnderwaterTint = Color3.fromRGB(10, 52, 92),
 		UnderwaterOpacity = 1,
-		Reflectance = 0.35,
+		Reflectance = 0.1,
 		FoamStyle = "Animated",
 		FoamStart = 0.3,
 		FoamFull = 0.7,
 		FoamOpacity = 0.8,
 		FilmOpacity = 0.03,
 		SplashRate = 4,
-		WaterMaterial = "Snow",
+		WaterMaterial = "SmoothPlastic",
 		WaterTexture = "",
 		FoamTexture = "",
+		WaveShading = 1,
+		SurfaceDetail = "Ripples",
+		RippleStrength = 0.4,
+		WaterRoughness = 0.1,
 	},
 }
 
