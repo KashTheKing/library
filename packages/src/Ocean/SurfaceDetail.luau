@@ -173,7 +173,7 @@ local function play(target: EditableImage)
 	local shown = 0
 	playback = RunService.Heartbeat:Connect(function()
 		tick += 1
-		if not ready or tick % 2 == 1 then -- 30 fps is plenty for an 8 s loop
+		if not ready or tick % 4 ~= 0 then -- 15 fps is plenty for ripples this slow (an 8 s loop)
 			return
 		end
 		local position = (os.clock() * FPS) % FRAMES

@@ -82,6 +82,29 @@ Settings.List = {
 	num("SeafloorHeight", -436, -10000, 10000, 1, "General Physics", {
 		Hint = "World Y of the seafloor slab the plugin places (Flat Water and Seafloor). Kept under the deepest wave trough and that much above the fallen-parts height",
 	}),
+	{
+		Name = "WaveMode",
+		Default = "Gerstner",
+		Options = { "Gerstner", "FFT" },
+		Section = "Wave Physics",
+		Rebuild = true,
+		Hint = "Gerstner = six waves set by the Wave1 to Wave6 settings; FFT = a simulated wave spectrum set by the FFT settings, with crests that sharpen, hook over and break",
+	},
+	num("FFTWaveHeight", 9, 0.2, 40, 0.1, "FFT Waves", {
+		Hint = "FFT mode: the significant wave height in studs (the average of the highest third of the waves)",
+	}),
+	num("FFTWindSpeed", 25, 3, 60, 1, "FFT Waves", {
+		Hint = "FFT mode: wind speed in studs per second; a stronger wind makes longer, faster waves",
+	}),
+	num("FFTWindAngle", 30, -180, 180, 1, "FFT Waves", {
+		Hint = "FFT mode: the direction the wind blows the waves, in degrees (0 = +X, 90 = +Z)",
+	}),
+	num("FFTChoppiness", 1.3, 0, 2, 0.05, "FFT Waves", {
+		Hint = "FFT mode: how far crests lean over and sharpen; higher hooks and breaks them (foam forms where they fold)",
+	}),
+	num("FFTFoam", 1, 0, 1, 0.01, "FFT Waves", {
+		Hint = "FFT mode: how much of the surface can foam where the waves fold (0 = none)",
+	}),
 	num("WaveGravity", 60, 5, 2000, 1, "Wave Physics", { Weather = true, Hint = "Wave speed: higher is faster" }),
 	num("WaveHeight", 1, 0, 12, 0.05, "Wave Physics", {
 		Weather = true,
@@ -179,6 +202,12 @@ Settings.List = {
 		Weather = true,
 		Hint = "How strongly the underwater tint covers the view (0 = none)",
 	}),
+	num("UnderwaterBlur", 4, 0, 24, 0.5, "Visuals", {
+		Hint = "How much the view blurs while the camera is under the surface (0 = none)",
+	}),
+	num("UnderwaterFocus", 60, 0, 500, 5, "Visuals", {
+		Hint = "Underwater, how far from the camera (studs) things stay in focus before the view blurs into the distance (0 = no depth of field)",
+	}),
 	num("Reflectance", 0.15, 0, 1, 0.01, "Visuals", { Hint = "How much of the sky the surface mirrors" }),
 	num("WaterTransparency", 0, 0, 1, 0.01, "Visuals", {
 		Hint = "How see-through the water surface is: 0 = opaque, 1 = invisible",
@@ -193,10 +222,13 @@ Settings.List = {
 		Section = "Visuals",
 		Hint = "Small ripples lit per pixel, finer than the waves: Ripples = the built-in animated ones; Custom = a SurfaceAppearance named WaterSurface you put inside the Ocean module; None = plain WaterMaterial",
 	},
-	num("RippleStrength", 0.04, 0, 1, 0.01, "Visuals", {
+	num("RippleStrength", 0.2, 0, 1, 0.01, "Visuals", {
 		Hint = "How choppy the Ripples are (their average slope)",
 	}),
-	num("WaterRoughness", 0.1, 0, 1, 0.01, "Visuals", {
+	num("SurfaceFlow", 1, 0, 10, 0.1, "Visuals", {
+		Hint = "FFT mode: how fast the ripples drift across the surface, along the wind (studs per second; 0 = they stay put)",
+	}),
+	num("WaterRoughness", 0.05, 0, 1, 0.01, "Visuals", {
 		Hint = "With Ripples: 0 = glassy, sharp sun glints and sky reflection; 1 = matte",
 	}),
 	{
@@ -221,6 +253,16 @@ Settings.List = {
 		Weather = true,
 		Hint = "Semi-transparent animated foam over the whole near surface, not only the crests (0 = off)",
 	}),
+	{
+		Name = "ContactFoam",
+		Default = true,
+		Section = "Visuals",
+		Hint = "FFT mode: foam in the water around every part crossing it (pillars, hulls, rocks), joining the part it touches; a part or model opts out with the attribute OceanContactFoam = false",
+	},
+	num("ContactFoamWidth", 3.5, 0.5, 12, 0.1, "Visuals", {
+		Hint = "How far the foam reaches out from the part (studs)",
+	}),
+	num("ContactFoamOpacity", 0.8, 0, 1, 0.01, "Visuals", { Hint = "How strong the foam is against the part" }),
 	num(
 		"SplashRate",
 		2,
@@ -289,6 +331,21 @@ Settings.List = {
 		Rebuild = true,
 		Hint = "The translucent skin layer over the near water: the surface sheen and the waterline on things crossing it",
 	},
+	{
+		Name = "ShowLODColors",
+		Default = false,
+		Section = "Performance",
+		Hint = "FFT mode: colours the sea by level of detail, one colour per level (red is the finest), blending into the next level's colour where its vertices merge",
+	},
+	{
+		Name = "AdaptiveQuality",
+		Default = true,
+		Section = "Performance",
+		Hint = "The sea lowers its detail (foam, ripples, then how much of it is animated) while the frame rate is under TargetFPS, and raises it again once the frame rate is well above",
+	},
+	num("TargetFPS", 30, 10, 120, 1, "Performance", {
+		Hint = "The frame rate AdaptiveQuality tries to keep",
+	}),
 	num("UpdateRate", 60, 15, 240, 1, "Performance", {
 		Snaps = { 15, 24, 30, 45, 60, 72, 90, 120, 144, 165, 240 }, -- the slider lands on these; type anything else
 		Hint = "How many times per second the surface mesh is updated",
@@ -323,7 +380,7 @@ Settings.List = {
 	-- the CollectionService tag names; rename to match tags your game already uses
 	{ Name = "FloatTag", Default = "OceanFloat", Section = "Tags", Hint = "Tag: unanchored parts float" },
 	{ Name = "ObstacleTag", Default = "OceanObstacle", Section = "Tags", Hint = "Tag: the sea goes idle against it" },
-	{ Name = "DryTag", Default = "OceanDry", Section = "Tags", Hint = "Tag: the surface sinks under it" },
+	{ Name = "DryTag", Default = "OceanDry", Section = "Tags", Hint = "Tag: the surface is cut out of it" },
 	{ Name = "TrackTag", Default = "OceanTrack", Section = "Tags", Hint = "Tag: water events only" },
 	{
 		Name = "ZoneTag",

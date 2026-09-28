@@ -15,6 +15,7 @@ local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 
 local Settings = require(script.Parent.Settings)
+local Spectral = require(script.Parent.Spectral)
 local Weather = require(script.Parent.Weather)
 
 --[=[
@@ -65,6 +66,7 @@ export type Set = {
 Waves.Sets = {} :: { [string]: Set }
 Waves.SeaLevel = 0
 Waves.MaxLength = 1 -- longest wavelength in any set (the renderer's "can this vertex move at all" bound)
+Waves.MaxAmp = 0 -- tallest possible crest in any set (the renderer's off-screen margin)
 Waves.Version = 0 -- bumps on every Refresh
 
 -- Scratch output of Gather: layer i is LayerSets[i] at LayerWeights[i]. Reused, never allocate per call.
@@ -169,11 +171,12 @@ function Waves.Refresh()
 	flat = Settings.Get("FlatSea") == true or localFlat or not Waves.MeshAvailable()
 	frozen = Settings.Get("StaticWaves") == true
 	table.clear(Waves.Sets)
-	Waves.MaxLength = 1
+	Waves.MaxLength, Waves.MaxAmp = 1, 0
 	for _, name in Weather.Names() do
 		local set = buildSet(name)
 		Waves.Sets[name] = set
 		Waves.MaxLength = math.max(Waves.MaxLength, table.unpack(set.Length))
+		Waves.MaxAmp = math.max(Waves.MaxAmp, set.MaxAmp)
 	end
 
 	table.clear(zones)
@@ -186,6 +189,12 @@ function Waves.Refresh()
 
 	Waves.SeaLevel = Settings.Get("SeaLevel")
 	timeScale = Settings.Get("TimeScale")
+	-- the FFT sea has its own wave field: the tallest crest and a wavelength the mesh never has to fade
+	Spectral.Sync()
+	if Spectral.Active() then
+		Waves.MaxAmp = Spectral.MaxAmp()
+		Waves.MaxLength = 1000
+	end
 	Waves.Version += 1
 end
 
@@ -476,6 +485,9 @@ function Waves.Displace(x: number, z: number, t: number?, now: number?): (number
 	if flat then
 		return 0, 0, 0
 	end
+	if Spectral.Active() then
+		return Spectral.Displace(x, z)
+	end
 	local clock = now or workspace:GetServerTimeNow()
 	local time = t or clock * timeScale
 	local ox, oy, oz = displaceGathered(Waves.Gather(zones, x, z, clock), x, z, time)
@@ -501,6 +513,9 @@ end
 function Waves.Height(x: number, z: number, t: number?, now: number?): number
 	if flat then
 		return Waves.SeaLevel
+	end
+	if Spectral.Active() then
+		return Spectral.Height(x, z)
 	end
 	local clock = now or workspace:GetServerTimeNow()
 	local time = t or clock * timeScale
@@ -528,6 +543,9 @@ end
 	@return number
 ]=]
 function Waves.LookNumber(name: string, x: number, z: number): number
+	if name == "MaxAmp" and Spectral.Active() then
+		return Spectral.MaxAmp()
+	end
 	local count = Waves.Gather(zones, x, z, workspace:GetServerTimeNow())
 	local value = 0
 	for i = 1, count do

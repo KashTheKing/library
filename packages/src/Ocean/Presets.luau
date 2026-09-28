@@ -82,7 +82,7 @@ Presets.Physics = {
 		{ -65, 80, 0.15 },
 		{ 100, 56, 0.12 },
 		{ -10, 48, 0.1 },
-	}, { WaveGravity = 60, WaveHeight = 1, TimeScale = 1 }),
+	}, { WaveMode = "Gerstner", WaveGravity = 60, WaveHeight = 1, TimeScale = 1 }),
 	Rough = waves({
 		{ 25, 420, 0.14 },
 		{ -20, 260, 0.16 },
@@ -90,7 +90,7 @@ Presets.Physics = {
 		{ -55, 100, 0.14 },
 		{ 110, 64, 0.11 },
 		{ 5, 48, 0.09 },
-	}, { WaveGravity = 90 }),
+	}, { WaveMode = "Gerstner", WaveGravity = 90 }),
 	Huge = waves({
 		{ 10, 900, 0.14 }, -- long, slow open-ocean swell
 		{ -25, 600, 0.14 },
@@ -98,7 +98,7 @@ Presets.Physics = {
 		{ -60, 160, 0.1 },
 		{ 95, 80, 0.06 },
 		{ -5, 48, 0.04 },
-	}, { WaveGravity = 45 }),
+	}, { WaveMode = "Gerstner", WaveGravity = 45 }),
 	Tsunami = waves({
 		{ 0, 1000, 0.45 }, -- one wall of water
 		{ 6, 1000, 0.25 },
@@ -106,7 +106,7 @@ Presets.Physics = {
 		{ -40, 140, 0.06 },
 		{ 100, 70, 0.04 },
 		{ -10, 48, 0.03 },
-	}, { WaveGravity = 25 }),
+	}, { WaveMode = "Gerstner", WaveGravity = 25 }),
 	Still = waves({
 		{ 15, 320, 0 },
 		{ -30, 190, 0 },
@@ -114,7 +114,32 @@ Presets.Physics = {
 		{ -65, 80, 0 },
 		{ 100, 56, 0 },
 		{ -10, 48, 0 },
-	}, {}),
+	}, { WaveMode = "Gerstner" }),
+	-- the FFT sea (WaveMode = "FFT"): a simulated spectrum instead of six waves. Its settings are the FFT ones.
+	["FFT Calm"] = {
+		WaveMode = "FFT",
+		FFTWaveHeight = 2.5,
+		FFTWindSpeed = 15,
+		FFTWindAngle = 30,
+		FFTChoppiness = 0.9,
+		FFTFoam = 0.4,
+	},
+	["FFT Moderate"] = {
+		WaveMode = "FFT",
+		FFTWaveHeight = 9,
+		FFTWindSpeed = 25,
+		FFTWindAngle = 30,
+		FFTChoppiness = 1.3,
+		FFTFoam = 1,
+	},
+	["FFT Stormy"] = {
+		WaveMode = "FFT",
+		FFTWaveHeight = 14,
+		FFTWindSpeed = 34,
+		FFTWindAngle = 30,
+		FFTChoppiness = 1.4,
+		FFTFoam = 1,
+	},
 }
 
 Presets.Visual = {
@@ -140,8 +165,8 @@ Presets.Visual = {
 		FoamTexture = "",
 		WaveShading = 1,
 		SurfaceDetail = "Ripples",
-		RippleStrength = 0.04,
-		WaterRoughness = 0.1,
+		RippleStrength = 0.2,
+		WaterRoughness = 0.05,
 	},
 	-- a flat cartoon water build: a matte Slate slab in sky blue under a deeper-blue film with a
 	-- faint tiled pattern, and Stylized's solid white crest foam
@@ -186,15 +211,25 @@ Presets.Visual = {
 		WaveShading = 0, -- flat bands
 		SurfaceDetail = "None",
 	},
-	-- lit per pixel: shaded waves, animated ripples on a glossy surface for the sun glints and the
-	-- sky reflection (a low roughness does that, not Reflectance, which mirrors the sky evenly)
+	-- the best the sea can look: the FFT waves (crests that sharpen, hook and break, foam where they
+	-- fold, 2 stud detail up close) at Realistic quality, lit per pixel, with animated ripples on a
+	-- glossy surface for the sun glints and the sky reflection (a low roughness does that, not
+	-- Reflectance, which mirrors the sky evenly). A turquoise that lightens through the crests.
+	-- It sets WaveMode, so it replaces the waves of a Physics preset applied before it; the sea state
+	-- (FFTWaveHeight and friends) comes from the FFT physics presets or your own values.
 	Realistic = {
-		ShallowColor = Color3.fromRGB(38, 118, 148),
-		DeepColor = Color3.fromRGB(10, 52, 92),
-		FoamColor = Color3.fromRGB(236, 244, 246),
-		UnderwaterTint = Color3.fromRGB(10, 52, 92),
+		WaveMode = "FFT",
+		Quality = "Realistic",
+		Lit = true,
+		Highlights = true,
+		DynamicLighting = true,
+		DynamicColors = true,
+		ShallowColor = Color3.fromRGB(56, 178, 150),
+		DeepColor = Color3.fromRGB(8, 86, 82),
+		FoamColor = Color3.fromRGB(226, 242, 240),
+		UnderwaterTint = Color3.fromRGB(8, 86, 82),
 		UnderwaterOpacity = 0.75, -- a little see-through: the player can still see underwater
-		Reflectance = 0.1,
+		Reflectance = 0,
 		WaterTransparency = 0,
 		FoamStyle = "Animated",
 		FoamStart = 0.3,
@@ -208,7 +243,7 @@ Presets.Visual = {
 		WaveShading = 1,
 		SurfaceDetail = "Ripples",
 		RippleStrength = 0.4,
-		WaterRoughness = 0.1,
+		WaterRoughness = 0.05,
 	},
 }
 
@@ -236,6 +271,11 @@ Presets.Ocean = {
 		DynamicColors = true,
 	}),
 	["Oil Rig"] = merge(Presets.Physics.Huge, Presets.Visual.Realistic, {
+		-- a long, slow open-ocean swell, as an FFT sea
+		FFTWaveHeight = 14,
+		FFTWindSpeed = 34,
+		FFTChoppiness = 1.2,
+		FFTFoam = 0.7,
 		Quality = "Realistic",
 		RenderDistance = 60000,
 		Lit = true,
@@ -245,6 +285,11 @@ Presets.Ocean = {
 	}),
 	-- over the top on purpose: the whole sea rendered, at full quality, lit, foaming, every scale cue on
 	["Great Flood"] = merge(Presets.Physics.Tsunami, Presets.Visual.Realistic, {
+		-- walls of water, as an FFT sea
+		FFTWaveHeight = 28,
+		FFTWindSpeed = 50,
+		FFTChoppiness = 1.6,
+		FFTFoam = 1,
 		FoamStyle = "Animated",
 		FoamStart = 0.1,
 		FoamFull = 0.45,

@@ -21,7 +21,7 @@ Using the [Studio Wally plugin](../../../plugins/studio-wally):
 Add this to the `[dependencies]` section of your `wally.toml`:
 
 ```toml
-Ocean = "kashtheking/ocean@1.0.2"
+Ocean = "kashtheking/ocean@1.1.0"
 ```
 
 ### Infinite Ocean plugin
