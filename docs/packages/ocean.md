@@ -13,7 +13,7 @@ description: "The Infinite Ocean module: an infinite Gerstner-wave sea on Editab
 
 </div>
 
-<span className="library-card-meta">v1.0.2</span>
+<span className="library-card-meta">v1.1.0</span>
 
 **The Infinite Ocean module: an infinite Gerstner-wave sea on `EditableMesh`, synced between server and clients.**
 
@@ -44,7 +44,7 @@ Using the [Studio Wally plugin](../plugins/studio-wally.md):
 Add this to the `[dependencies]` section of your `wally.toml`, then run `wally install`:
 
 ```toml
-Ocean = "kashtheking/ocean@1.0.2"
+Ocean = "kashtheking/ocean@1.1.0"
 ```
 
 ### Infinite Ocean plugin
