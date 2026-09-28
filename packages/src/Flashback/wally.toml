@@ -1,0 +1,10 @@
+[package]
+name = "kashtheking/flashback"
+version = "1.0.0"
+description = "Flashback replay module: record gameplay on the server into a compact binary replay and play it back on the client or in Studio, with seek and variable speed."
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+license = "MIT"
+authors = ["KashTheKing"]
+
+[dependencies]
