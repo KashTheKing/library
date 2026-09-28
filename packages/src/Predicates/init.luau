@@ -70,7 +70,7 @@ export type Predicate = (any)->(boolean, ...any)
 	three arguments.
 ]=]
 --Predicates to make life easier :)
-const DEFAULT_WARN_FORMAT_STRING = "[%s] Predicate failed for %s: %s"
+local DEFAULT_WARN_FORMAT_STRING = "[%s] Predicate failed for %s: %s"
 
 --[=[
 	@type TypeValidator "any" | string | (value: any) -> any?
