@@ -18,7 +18,7 @@ KashTheKing's Library is everything I reuse between my Roblox projects, publishe
   </a>
   <a className="library-card" href="../plugins/">
     <h3>Plugins</h3>
-    <p>Studio plugins I made or forked: Packager, Studio Wally, Bounding Box, Init Framework, Infinite Ocean and the upcoming Viewmodel Editor.</p>
+    <p>Studio plugins I made or forked: Packager, Studio Wally, Bounding Box, Init Framework, Infinite Ocean, Flashback and the upcoming Viewmodel Editor.</p>
     <span className="library-card-cta">Browse plugins →</span>
   </a>
   <a className="library-card" href="../building-blocks/">

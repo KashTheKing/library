@@ -15,8 +15,8 @@ const SECTIONS = [
 	{
 		title: "Plugins",
 		to: "/docs/plugins/",
-		meta: "6 Studio plugins",
-		text: "Packager, Studio Wally, Bounding Box, Init Framework, Infinite Ocean and the upcoming Viewmodel Editor. One click from the Creator Store.",
+		meta: "7 Studio plugins",
+		text: "Packager, Studio Wally, Bounding Box, Init Framework, Infinite Ocean, Flashback and the upcoming Viewmodel Editor. One click from the Creator Store.",
 	},
 	{
 		title: "Building Blocks",
