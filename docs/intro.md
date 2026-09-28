@@ -13,7 +13,7 @@ KashTheKing's Library is everything I reuse between my Roblox projects, publishe
 <div className="library-cards">
   <a className="library-card" href="../packages/">
     <h3>Packages</h3>
-    <p>Fifteen Luau modules for instance lifecycles, networking, hitboxes, cameras, GUIs, type checking and more. Install with Wally or the Studio Wally plugin.</p>
+    <p>Sixteen Luau modules for instance lifecycles, networking, hitboxes, cameras, GUIs, type checking and more. Install with Wally or the Studio Wally plugin.</p>
     <span className="library-card-cta">Browse packages →</span>
   </a>
   <a className="library-card" href="../plugins/">

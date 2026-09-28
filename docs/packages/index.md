@@ -79,6 +79,12 @@ Most packages depend on [sleitnick's Trove and Signal](https://sleitnick.github.
     <p>Object-oriented hitboxes on <code>GetPartsInPart</code>, with welding, timed scans and humanoid filtering.</p>
     <span className="library-card-cta">Docs →</span>
   </a>
+  <a className="library-card" href="./flashback/">
+    <span className="library-card-meta">@1.0.0</span>
+    <h3>Flashback</h3>
+    <p>The Flashback replay module: record gameplay on the server and play it back on the client or in Studio.</p>
+    <span className="library-card-cta">Docs →</span>
+  </a>
   <a className="library-card" href="./ocean/">
     <span className="library-card-meta">@1.0.2</span>
     <h3>Ocean</h3>
@@ -163,6 +169,7 @@ Most packages depend on [sleitnick's Trove and Signal](https://sleitnick.github.
 | [ClassProperties](./class-properties.md) | `kashtheking/class-properties` | `@0.2.0` | Typed constructors for every Roblox class's properties, for type-checking pseudo-instances. |
 | [ClientSettings](./client-settings.md) | `kashtheking/local-settings` | `@0.1.0` (deprecated) | A bare-bones store for local (client) settings that fires a Signal when a setting changes. |
 | [CountryFlags](./country-flags.md) | `kashtheking/Country-Flags` | `@0.1.0` | Turn a country, region or language code into its flag emoji, and look up a player's region. |
+| [Flashback](./flashback.md) | `kashtheking/flashback` | `@1.0.0` | The Flashback replay module: record gameplay on the server and play it back on the client or in Studio. |
 | [GuiHandler](./gui-handler.md) | `kashtheking/gui-handler` | `@1.0.1` | Show and hide ScreenGuis with configurable tweens, and manage them all from one place. |
 | [Hitbox](./hitbox.md) | `kashtheking/hitbox` | `@1.0.3` | Object-oriented hitboxes on `GetPartsInPart`, with welding, timed scans and humanoid filtering. |
 | [Init](./init.md) |  | WIP | My trusted module loader. Being reworked; the current version ships as a building block. |

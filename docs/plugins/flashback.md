@@ -8,11 +8,11 @@ description: Record Roblox gameplay on the server and play it back anywhere, wit
 
 <div className="library-links">
 
-[Full documentation](https://kashtheking.com/flashback/) [This page's source](https://github.com/KashTheKing/library/tree/main/plugins/flashback)
+[Full documentation](https://kashtheking.com/flashback/) [Flashback package](../packages/flashback.md) [This page's source](https://github.com/KashTheKing/library/tree/main/plugins/flashback)
 
 </div>
 
-<span className="library-card-meta">paid plugin · coming soon</span>
+<span className="library-card-meta">paid plugin · MIT module · coming soon</span>
 
 ![Flashback icon](/img/flashback-icon.png)
 
@@ -28,7 +28,7 @@ Flashback captures your game into a compact binary replay and plays it back on l
 - **Moon Animator export.** Turn a replay into a Moon Animator 2 save and polish it into a cutscene.
 - **Extensible.** Record any bool, number, string, Color3, Vector3 or Enum property per class, fire timeline events (kills, goals, rounds) and add custom binary channels.
 
-The plugin is paid and closed-source.
+The plugin is paid and closed-source. The `Flashback` module it installs is MIT licensed, open source in this library at [packages/src/Flashback](https://github.com/KashTheKing/library/tree/main/packages/src/Flashback), and installable on its own as the Wally package [`kashtheking/flashback`](../packages/flashback.md).
 
 ## Where the docs are
 

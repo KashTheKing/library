@@ -9,7 +9,7 @@ const SECTIONS = [
 	{
 		title: "Packages",
 		to: "/docs/packages/",
-		meta: "15 Wally packages",
+		meta: "16 Wally packages",
 		text: "Binder, Packet, Hitbox, CameraController, GuiHandler, t and more. Install with Wally or the Studio Wally plugin, every one with a generated API reference.",
 	},
 	{
