@@ -8,11 +8,11 @@ description: Record Roblox gameplay on the server and play it back anywhere, wit
 
 <div className="library-links">
 
-[Full documentation](https://kashtheking.com/flashback/) [Get it on the Creator Store](https://create.roblox.com/store/creators/117445502) [This page's source](https://github.com/KashTheKing/library/tree/main/plugins/flashback)
+[Full documentation](https://kashtheking.com/flashback/) [This page's source](https://github.com/KashTheKing/library/tree/main/plugins/flashback)
 
 </div>
 
-<span className="library-card-meta">paid plugin</span>
+<span className="library-card-meta">paid plugin · coming soon</span>
 
 ![Flashback icon](/img/flashback-icon.png)
 
