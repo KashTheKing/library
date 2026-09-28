@@ -241,6 +241,7 @@ local function publish(camera: Camera, night: number)
 	frame.SimTime = currentTime()
 	frame.Flow, frame.FlowAngle, frame.FlowTime =
 		Settings.Get("SurfaceFlow"), math.rad(simConfig.WindDirection), workspace:GetServerTimeNow()
+	frame.Transparent = Settings.Get("WaterTransparency") > 0.001
 	frame.SeaVersion = seaVersion
 	frame.SeaLevel, frame.WaveHeight, frame.WindSpeed = simConfig.SeaLevel, simConfig.WaveHeight, simConfig.WindSpeed
 	frame.WindAngle, frame.Chop, frame.Foam = simConfig.WindDirection, simConfig.Chop, simConfig.Foam
@@ -262,6 +263,7 @@ local function render()
 		shownNight = night
 		clipmap:SetNight(night)
 	end
+	clipmap.transparentSea = Settings.Get("WaterTransparency") > 0.001
 	clipmap.flow, clipmap.flowAngle, clipmap.flowTime =
 		Settings.Get("SurfaceFlow"), math.rad(simConfig.WindDirection), workspace:GetServerTimeNow()
 	clipmap:Update(camera)

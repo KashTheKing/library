@@ -1,4 +1,6 @@
---[[
+--[=[
+	@class Contact
+
 	Client-only. Foam where things cross the water: the FFT sea foams around every pillar, hull, rock and
 	buoy standing in it, in its own surface.
 
@@ -13,7 +15,7 @@
 	Left out on purpose: parts wider than MAX_EXTENT (islands, the seafloor slab), invisible parts, characters,
 	and a part the water does not reach (a deck above the swell). Opt a part or model out with the attribute
 	OceanContactFoam = false.
-]]
+]=]
 local RunService = game:GetService("RunService")
 
 local Settings = require(script.Parent.Settings)

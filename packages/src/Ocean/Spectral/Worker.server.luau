@@ -76,6 +76,7 @@ local FRAME_KEYS = {
 	"Flow",
 	"FlowAngle",
 	"FlowTime",
+	"Transparent",
 }
 
 RunService.PreRender:ConnectParallel(function()

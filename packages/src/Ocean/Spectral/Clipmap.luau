@@ -62,6 +62,7 @@ local MORPH_STEPS = 8
 -- The ripples drift across the surface; the UVs are rewritten each time they have moved this much of a
 -- texture tile (about a tenth of a stud at the default drift), which is smooth to the eye and cheap
 local UV_DRIFT_STEP = 0.004
+local UV_DRIFT_SPREAD = 6 -- frames over which the tiles take their turn at a drift rewrite
 
 -- The LOD visualizer's colour per level; vertices that are morphing blend towards the next level's colour
 local LEVEL_COLORS = {
@@ -121,6 +122,12 @@ export type Tile = {
 	uvChangedIds: { number },
 	uvChangedValues: { Vector2 },
 	uvChanged: number,
+	-- the vertex alpha each vertex was last written with (a sunk overlap is hidden while the water is see-through)
+	alphaShown: { number },
+	alphaChangedIds: { number },
+	alphaChangedValues: { number },
+	alphaChanged: number,
+	width: number?,
 	driftU: number,
 	driftV: number,
 	uvMode: number,
@@ -498,6 +505,10 @@ function Clipmap:_createTile(spec: TileSpec, template: EditableMesh): Tile
 		uvChangedIds = {},
 		uvChangedValues = {},
 		uvChanged = 0,
+		alphaShown = table.create(count, 1),
+		alphaChangedIds = {},
+		alphaChangedValues = {},
+		alphaChanged = 0,
 		driftU = 0,
 		driftV = 0,
 		uvMode = 0,
@@ -702,6 +713,8 @@ function Clipmap:Configure(p: Frame)
 		end
 	end
 	self.config.ShowLODColors = p.LOD
+	self.transparent = p.Transparent == true
+	self.frame = (self.frame or 0) + 1
 	-- The ripples' drift: the texture slides along the flow direction at Flow studs a second, as a fraction
 	-- of one texture tile (it repeats, so only the fraction matters)
 	-- (the wrap is taken last: wrapping the distance first would jump the texture whenever it came round)
@@ -759,8 +772,13 @@ function Clipmap:UpdateTiles(p: Frame, share: number, shares: number): { Tile }
 		local wx = (level.cgx + tile.cx) * S
 		local wz = (level.cgz + tile.cz) * S
 		local driftU, driftV = self.driftU or 0, self.driftV or 0
-		if math.abs(driftU - tile.driftU) > UV_DRIFT_STEP or math.abs(driftV - tile.driftV) > UV_DRIFT_STEP then
-			tile.uvDirty = true -- the ripples have drifted a little: every UV moves with them
+		if
+			(math.abs(driftU - tile.driftU) > UV_DRIFT_STEP or math.abs(driftV - tile.driftV) > UV_DRIFT_STEP)
+			and (self.frame + index) % UV_DRIFT_SPREAD == 0
+		then
+			-- The ripples have drifted a little: every UV moves with them. Each tile takes its turn on its own
+			-- frame, so the rewrites spread out instead of every tile's landing in one frame (a hitch).
+			tile.uvDirty = true
 		end
 		if wx ~= tile.placedX or wz ~= tile.placedZ or sea ~= tile.placedY then
 			tile.placedX, tile.placedY, tile.placedZ = wx, sea, wz
@@ -820,6 +838,15 @@ function Clipmap:WriteTiles(list: { Tile })
 			mesh:BatchSetValues(tile.vertexIds, tile.positions)
 			mesh:BatchSetValues(tile.normalIds, tile.normals)
 			mesh:BatchSetValues(tile.colorIds, tile.colors)
+			local alphaChanged = tile.alphaChanged
+			if alphaChanged > 0 then
+				local ids, values = tile.alphaChangedIds, tile.alphaChangedValues
+				-- the lists are reused: trim what an earlier, longer update left past the count
+				for k = #ids, alphaChanged + 1, -1 do
+					ids[k], values[k] = nil, nil
+				end
+				mesh:BatchSetValues(ids, values)
+			end
 			if tile.uvMode == 1 then
 				mesh:BatchSetValues(tile.uvIds, tile.uvs)
 			elseif tile.uvMode == 2 and tile.uvChanged > 0 then
@@ -852,6 +879,7 @@ function Clipmap:Update(camera: Camera)
 	p.ViewX, p.ViewY = viewport.X, viewport.Y
 	p.Night, p.Textured, p.LOD = self.night, self.textured, self.config.ShowLODColors == true
 	p.Flow, p.FlowAngle, p.FlowTime = self.flow, self.flowAngle, self.flowTime
+	p.Transparent = self.transparentSea
 	self:Configure(p)
 	self:WriteTiles(self:UpdateTiles(p, 1, 1))
 end
@@ -959,6 +987,10 @@ function Clipmap:_computeTile(tile: Tile, camX: number, camY: number, camZ: numb
 
 	local positions, normals, colors, uvs = tile.positions, tile.normals, tile.colors, tile.uvs
 	local ox, oz = tile.originX, tile.originZ
+	local transparent = self.transparent
+	local alphaShown, alphaIds, alphaValues, colorIds =
+		tile.alphaShown, tile.alphaChangedIds, tile.alphaChangedValues, tile.colorIds
+	local alphaChanged = 0
 	local farStart, farScale = self.farStart, self.farScale
 	local fadesOut = nearest + 2 * tile.radius > farStart
 	local palette = self.palette
@@ -1010,11 +1042,22 @@ function Clipmap:_computeTile(tile: Tile, camX: number, camY: number, camZ: numb
 		end
 		local px, pz = x + dx, z + dz
 		local drawY = y
+		local wantAlpha = 1
 		if coverHalf > 0 then
 			local rx, rz = x - coverX, z - coverZ
 			if rx > -coverHalf and rx < coverHalf and rz > -coverHalf and rz < coverHalf then
 				drawY -= coverSink
+				-- see-through water would show the sunk overlap as a second layer (dark bands): hide it
+				if transparent then
+					wantAlpha = 0
+				end
 			end
+		end
+		if alphaShown[k] ~= wantAlpha then
+			alphaShown[k] = wantAlpha
+			alphaChanged += 1
+			alphaIds[alphaChanged] = colorIds[k]
+			alphaValues[alphaChanged] = wantAlpha
 		end
 		positions[k] = Vector3.new(px - ox, drawY, pz - oz)
 
@@ -1053,8 +1096,45 @@ function Clipmap:_computeTile(tile: Tile, camX: number, camY: number, camZ: numb
 		end
 	end
 
+	-- See-through water: the sunk overlap is hidden above, but the triangles along the rim would still fade
+	-- in a faint outline. Fold every hidden vertex onto the nearest visible one instead, so its triangles
+	-- have no area (the grid is row-major: a step is one column or one row).
+	if transparent and coverHalf > 0 then
+		local width = tile.width
+		if not width then
+			width = 1
+			while width < count and tile.gz[width + 1] == tile.gz[1] do
+				width += 1
+			end
+			tile.width = width
+		end
+		for k = 1, count do
+			if alphaShown[k] ~= 0 then
+				continue
+			end
+			-- The overlap is one cell deep: a hidden vertex has a visible neighbour along a row and/or a column,
+			-- and folds onto it (the corner one onto the corner), so all its triangles collapse onto the rim.
+			local column = (k - 1) % width
+			local stepX, stepZ = 0, 0
+			if column > 0 and alphaShown[k - 1] == 1 then
+				stepX = -1
+			elseif column + 1 < width and alphaShown[k + 1] == 1 then
+				stepX = 1
+			end
+			if k > width and alphaShown[k - width] == 1 then
+				stepZ = -1
+			elseif k + width <= count and alphaShown[k + width] == 1 then
+				stepZ = 1
+			end
+			if stepX ~= 0 or stepZ ~= 0 then
+				positions[k] = positions[k + stepX + stepZ * width]
+			end
+		end
+	end
+
 	-- The vertex data is in the tile's arrays; WriteTiles puts it in the mesh.
 	tile.writeMesh = true
+	tile.alphaChanged = alphaChanged
 
 	-- UVs follow the morphed grid (the collapsed vertices are what form the coarse
 	-- triangles), but they only change with the tile's placement or a vertex's
@@ -1214,6 +1294,10 @@ function Clipmap.forShare(state: any, simulation: any, masks: any, records: { an
 			uvChangedIds = {},
 			uvChangedValues = {},
 			uvChanged = 0,
+			alphaShown = table.create(count, 1),
+			alphaChangedIds = {},
+			alphaChangedValues = {},
+			alphaChanged = 0,
 			driftU = 0,
 			driftV = 0,
 			uvMode = 0,

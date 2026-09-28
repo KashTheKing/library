@@ -165,11 +165,11 @@ Presets.Visual = {
 		FoamTexture = "",
 		WaveShading = 1,
 		SurfaceDetail = "Ripples",
-		RippleStrength = 0.2,
-		WaterRoughness = 0.05,
+		RippleStrength = 0.04,
+		WaterRoughness = 0.1,
 	},
-	-- a flat cartoon water build: a matte Slate slab in sky blue under a deeper-blue film with a
-	-- faint tiled pattern, and Stylized's solid white crest foam
+	-- a flat cartoon water build: a matte Slate slab in sky blue under a deeper-blue film with a faint
+	-- tiled pattern, and plenty of solid white foam: it starts low on each crest and runs solid
 	Cartoony = {
 		ShallowColor = Color3.fromRGB(4, 175, 236),
 		DeepColor = Color3.fromRGB(9, 137, 207),
@@ -179,42 +179,43 @@ Presets.Visual = {
 		Reflectance = 0,
 		WaterTransparency = 0,
 		FoamStyle = "Solid",
-		FoamStart = 0.55,
-		FoamFull = 0.85,
+		FoamStart = -0.02,
+		FoamFull = 0.14,
 		FoamOpacity = 1,
 		FilmOpacity = 0.25,
 		SplashRate = 8,
 		WaterMaterial = "Slate",
 		WaterTexture = "rbxassetid://6126332496",
 		FoamTexture = "",
-		WaveShading = 0, -- flat cartoon colour: the waves read by their outline and the film
+		WaveShading = 0, -- flat cartoon colour: the waves read by their outline, the foam and the film
 		SurfaceDetail = "None",
 	},
-	-- bright flat bands with solid white foam
+	-- smooth plastic in one flat blue: no ripples, no shading, a faint gloss, with a white crest and a
+	-- solid white foam that starts low on each wave
 	Stylized = {
-		ShallowColor = Color3.fromRGB(40, 190, 220),
-		DeepColor = Color3.fromRGB(20, 120, 190),
+		ShallowColor = Color3.fromRGB(30, 130, 225),
+		DeepColor = Color3.fromRGB(30, 130, 225),
 		FoamColor = Color3.fromRGB(255, 255, 255),
-		UnderwaterTint = Color3.fromRGB(20, 120, 190),
+		UnderwaterTint = Color3.fromRGB(30, 130, 225),
 		UnderwaterOpacity = 0.75, -- a little see-through: the player can still see underwater
-		Reflectance = 0,
+		Reflectance = 0.08,
 		WaterTransparency = 0,
 		FoamStyle = "Solid",
-		FoamStart = 0.55,
-		FoamFull = 0.85,
+		FoamStart = 0,
+		FoamFull = 0.14,
 		FoamOpacity = 1,
-		FilmOpacity = 0.2,
+		FilmOpacity = 0,
 		SplashRate = 6,
-		WaterMaterial = "Slate",
+		WaterMaterial = "SmoothPlastic",
 		WaterTexture = "",
 		FoamTexture = "",
-		WaveShading = 0, -- flat bands
+		WaveShading = 0, -- one flat blue
 		SurfaceDetail = "None",
 	},
 	-- the best the sea can look: the FFT waves (crests that sharpen, hook and break, foam where they
-	-- fold, 2 stud detail up close) at Realistic quality, lit per pixel, with animated ripples on a
-	-- glossy surface for the sun glints and the sky reflection (a low roughness does that, not
-	-- Reflectance, which mirrors the sky evenly). A turquoise that lightens through the crests.
+	-- fold, 2 stud detail up close) at Realistic quality, lit per pixel: a dark, deep blue-green, glossy
+	-- with animated ripples for the sun glints and the sky reflection (a low roughness does that, not
+	-- Reflectance, which mirrors the sky evenly). Foam only where the waves break.
 	-- It sets WaveMode, so it replaces the waves of a Physics preset applied before it; the sea state
 	-- (FFTWaveHeight and friends) comes from the FFT physics presets or your own values.
 	Realistic = {
@@ -224,10 +225,10 @@ Presets.Visual = {
 		Highlights = true,
 		DynamicLighting = true,
 		DynamicColors = true,
-		ShallowColor = Color3.fromRGB(56, 178, 150),
-		DeepColor = Color3.fromRGB(8, 86, 82),
-		FoamColor = Color3.fromRGB(226, 242, 240),
-		UnderwaterTint = Color3.fromRGB(8, 86, 82),
+		ShallowColor = Color3.fromRGB(10, 46, 60),
+		DeepColor = Color3.fromRGB(1, 12, 20),
+		FoamColor = Color3.fromRGB(214, 224, 226),
+		UnderwaterTint = Color3.fromRGB(1, 12, 20),
 		UnderwaterOpacity = 0.75, -- a little see-through: the player can still see underwater
 		Reflectance = 0,
 		WaterTransparency = 0,
@@ -243,7 +244,7 @@ Presets.Visual = {
 		WaveShading = 1,
 		SurfaceDetail = "Ripples",
 		RippleStrength = 0.4,
-		WaterRoughness = 0.05,
+		WaterRoughness = 0.02,
 	},
 }
 
@@ -262,8 +263,10 @@ Presets.Ocean = {
 		DynamicLighting = true,
 		DynamicColors = true,
 	}),
-	["Pirate Seas"] = merge(Presets.Physics.Rough, Presets.Visual.Stylized, {
-		Quality = "Regular",
+	-- the dark, glossy FFT sea at a moderate swell, its slopes shaded a little softer than Realistic
+	["Pirate Seas"] = merge(Presets.Physics["FFT Moderate"], Presets.Visual.Realistic, {
+		WaveShading = 0.75,
+		Quality = "Realistic",
 		RenderDistance = 40000,
 		Lit = true,
 		Highlights = true,

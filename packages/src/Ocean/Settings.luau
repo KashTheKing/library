@@ -222,13 +222,13 @@ Settings.List = {
 		Section = "Visuals",
 		Hint = "Small ripples lit per pixel, finer than the waves: Ripples = the built-in animated ones; Custom = a SurfaceAppearance named WaterSurface you put inside the Ocean module; None = plain WaterMaterial",
 	},
-	num("RippleStrength", 0.2, 0, 1, 0.01, "Visuals", {
+	num("RippleStrength", 0.04, 0, 1, 0.01, "Visuals", {
 		Hint = "How choppy the Ripples are (their average slope)",
 	}),
 	num("SurfaceFlow", 1, 0, 10, 0.1, "Visuals", {
 		Hint = "FFT mode: how fast the ripples drift across the surface, along the wind (studs per second; 0 = they stay put)",
 	}),
-	num("WaterRoughness", 0.05, 0, 1, 0.01, "Visuals", {
+	num("WaterRoughness", 0.1, 0, 1, 0.01, "Visuals", {
 		Hint = "With Ripples: 0 = glassy, sharp sun glints and sky reflection; 1 = matte",
 	}),
 	{
