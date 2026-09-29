@@ -4,4 +4,5 @@ Record Roblox gameplay on the server and play it back anywhere, with scrubbing, 
 The plugin is paid and closed-source; the Flashback module it installs is MIT licensed, in this library at [packages/src/Flashback](../../packages/src/Flashback) (Wally: `kashtheking/flashback`). Docs: https://kashtheking.com/flashback/
 
 ## Installation
-Coming soon to the Creator Store.
+Get the plugin
+https://create.roblox.com/store/asset/81981489933039/Flashback-Record-and-Replay-Gameplay

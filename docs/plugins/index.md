@@ -48,7 +48,7 @@ All of my Roblox Studio plugins and plugin forks. Each installs from the Creator
     <span className="library-card-cta">Guide →</span>
   </a>
   <a className="library-card" href="./flashback/">
-    <span className="library-card-meta">paid · coming soon</span>
+    <span className="library-card-meta">paid</span>
     <h3>Flashback</h3>
     <p>Record gameplay on the server and play it back anywhere. Has its own docs site.</p>
     <span className="library-card-cta">Guide →</span>
@@ -70,7 +70,7 @@ All of my Roblox Studio plugins and plugin forks. Each installs from the Creator
 | [Bounding Box](./bounding-box.md) | One-click bounding-box part for a model | Free | [Get it](https://create.roblox.com/store/asset/83615267790769/Bounding-Box-Plugin) |
 | [Init Framework](./init-framework.md) | One-click game setup | Free (early version) | [Get it](https://create.roblox.com/store/asset/77164672536940/Init-Framework) |
 | [Infinite Ocean](./infinite-ocean.md) | Infinite animated ocean with physics and weather | Paid | [Get it](https://create.roblox.com/store/asset/76752250508724/Infinite-Ocean) |
-| [Flashback](./flashback.md) | Record gameplay and play it back with scrubbing and slow motion | Paid | Coming soon |
+| [Flashback](./flashback.md) | Record gameplay and play it back with scrubbing and slow motion | Paid | [Get it](https://create.roblox.com/store/asset/81981489933039/Flashback-Record-and-Replay-Gameplay) |
 | [Viewmodel Editor](./viewmodel-editor.md) | First-person viewmodel editor | Unreleased | Coming soon |
 
 ## Installing any plugin
