@@ -252,8 +252,10 @@ function Rig.apply(rig: Rig, mode: Mode, strength: number?, damping: number?)
 		setSockets(rig, true)
 		humanoid.AutoRotate = false
 	elseif mode == "Limp" then
-		for _, joint in rig.Joints do
-			setJoint(joint, false, strength, damping)
+		for name, joint in rig.Joints do
+			-- Root has no ball socket: simulated, the non-colliding root tears off, falls through
+			-- the floor and takes the camera with it. Kept rigid, it rides along with the hips.
+			setJoint(joint, name == "Root", strength, damping)
 		end
 		setSockets(rig, true)
 		humanoid.AutoRotate = false

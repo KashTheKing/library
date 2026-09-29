@@ -19,7 +19,7 @@ description: "GTA V / Euphoria style balance loss for R15: stutter-step to recov
 
 Call `Stagger.Begin` on the server and the character lurches in a direction, taking quick, irregular catch-up steps to get their feet back under them while the arms come out and the torso swings with the momentum. Each step kills some of the lurch and buys some balance back; a half step (the stutter) buys less, a misstep kicks them sideways. Little by little they either **recover** and stand normally, or run out of balance and **ragdoll**, staying down for a while before standing back up. It is modelled on NaturalMotion's Euphoria, the behaviour behind the staggering in GTA IV / V and Red Dead Redemption.
 
-It uses only the joints Roblox already gives every character with the [Avatar Joint Upgrade](https://devforum.roblox.com/t/avatar-joint-upgrade-for-physically-simulated-character-movement-is-now-live/4298561): `AnimationConstraint` for the animation and the `BallSocketConstraint` limits next to it. **No joint is replaced or added.** While staggering the upper body is physically simulated with a soft `AngularStrength` (a "muscle") so it lags the procedural pose and reacts to movement, and the root and legs stay kinematic so the Humanoid keeps the character on its feet. When they fall every joint goes limp and the ball sockets do the rest.
+It uses only the joints Roblox already gives every character with the [Avatar Joint Upgrade](https://devforum.roblox.com/t/avatar-joint-upgrade-for-physically-simulated-character-movement-is-now-live/4298561): `AnimationConstraint` for the animation and the `BallSocketConstraint` limits next to it. **No joint is replaced or added.** While staggering the upper body is physically simulated with a soft `AngularStrength` (a "muscle") so it lags the procedural pose and reacts to movement, and the root and legs stay kinematic so the Humanoid keeps the character on its feet. When they fall every limb goes limp and the ball sockets do the rest; only the `Root` joint stays rigid so the `HumanoidRootPart` (and the camera) rides along with the hips.
 
 ## Use it when
 
@@ -98,6 +98,24 @@ Stagger.RegisterPreset("Slippery", Stagger.Presets.Default, {
 	RagdollDuration = 0, -- stay down until Stagger.Recover
 })
 ```
+
+### Recipe: too weak to stand
+
+A stagger that never recovers: steps barely help, balance drains until the character falls, and the ragdoll stays down until you call `Stagger.Recover`. Register it on the server and the client:
+
+```lua
+Stagger.RegisterPreset("Suspended", Stagger.Presets.Default, {
+	StartBalance = 0.85,
+	LurchSpeed = 7,
+	BalanceDrain = 0.2, -- lower = longer struggle
+	StepBalanceGain = 0.01,
+	RecoverBalance = 2, -- unreachable: never recovers
+	MaxDuration = math.huge,
+	RagdollDuration = 0,
+})
+```
+
+For legs that visibly give out, lower `Humanoid.HipHeight` and fold the knees on the owning client as balance drops. Read it from `Stagger.GetController(character).Balance.Balance` while the state is `Staggering`, and multiply the extra bend into the hip, knee and ankle `Transform`s in `PreSimulation`.
 
 Every field is documented on the [Config](/api/Config) page: balance drain and step timing, lean and flail amounts, muscle and limp strengths, ragdoll and get-up durations, and whether the player's controls are disabled.
 

@@ -428,7 +428,7 @@ scenario("Player character: heavy hit falls, ragdolls, auto gets up", function()
 	check(Server.GetState(model) == S.Ragdoll, "heavy x2 fell")
 	check(fell == 1, "Fell fired once")
 	check(allKinematic(model) == false, "joints simulated")
-	for _, j in joints do check(j.IsKinematic == false and math.abs(j.AngularStrength - 0.04) < 1e-6, j.Name .. " limp") end
+	for _, j in joints do if j.Name == "Root" then check(j.IsKinematic == true, "Root stays rigid while limp") else check(j.IsKinematic == false and math.abs(j.AngularStrength - 0.04) < 1e-6, j.Name .. " limp") end end
 	check(parts.HumanoidRootPart.CanCollide == false, "root no collide")
 	local hs = store(hum)
 	check(hs.changes[#hs.changes] == roblox.Enum.HumanoidStateType.Physics, "driver put Humanoid in Physics")
