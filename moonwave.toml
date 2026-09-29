@@ -101,6 +101,10 @@ section = "Gameplay"
 classes = ["Hitbox", "CameraController", "GuiHandler"]
 
 [[classOrder]]
+section = "Stagger"
+classes = ["Stagger", "Controller", "Balance", "Rig", "Config"]
+
+[[classOrder]]
 section = "Ocean"
 classes = ["Ocean", "Settings", "Presets", "Weather", "Zones", "Regions", "Tracker", "Waves"]
 

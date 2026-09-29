@@ -19,6 +19,7 @@ Reusable utility modules, installable via [Wally](https://wally.run) or the [Stu
 | [Ocean](src/Ocean) | `@1.0.2` | The open-source module behind the Infinite Ocean plugin: an infinite Gerstner-wave sea on EditableMesh, synced server and client, with weather, zones, obstacles, dry regions, water queries and events. |
 | [Packet](src/Packet) | `@1.0.0` | A buffer-based networking library for Roblox. |
 | [Predicates](src/Predicates) | `@0.2.3` | A utility library for predicates. Primarily used in my kashtheking/binder package. |
+| [Stagger](src/Stagger) | `@0.1.0` | GTA V / Euphoria style balance loss for R15: characters stutter-step to regain their footing, then recover or ragdoll, on Roblox's AnimationConstraint rigs. Server authoritative, networked with Packet. |
 | [SoundPool](src/SoundPool) | `@0.1.0 (DEPRECATED)` | A SoundPool class. Useful for SFX in fighting games. Uses Sleitnick's trove and signal packages along with frqstbite's object-pool package. |
 | [StateManager](src/StateManager) | `@2.1.1 (DEPRECATED)` | A state manager for Roblox that uses Sleitnick's Trove and Signal for easy cleanup and use, as well as a configurable setup for each StateManager and full type checking in strict. If you want an easy way to handle state in your game, this module is for you. Previous versions are broken, DO NOT USE THEM! |
 | [t](src/t) | `@1.0.0` | A runtime type checker for Roblox. |
