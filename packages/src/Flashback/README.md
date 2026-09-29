@@ -4,7 +4,7 @@ The open-source core of [Flashback](https://kashtheking.com/flashback/): record 
 
 Documentation and API reference: **https://kashtheking.com/flashback/**
 
-The **Flashback Studio plugin** (installer, one-click recording, replay browser, Moon Animator export UI) is proprietary and not part of this package. It is coming soon to the Creator Store.
+The **Flashback Studio plugin** (installer, one-click recording, replay browser, Moon Animator export UI) is proprietary and not part of this package. Get it on the [Creator Store](https://create.roblox.com/store/asset/81981489933039/Flashback-Record-and-Replay-Gameplay).
 
 ## Installation
 
