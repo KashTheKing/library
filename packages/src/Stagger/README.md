@@ -49,3 +49,7 @@ require(ReplicatedStorage.Packages.Stagger)
 ```
 
 Requires `StarterPlayer.AvatarJointUpgrade` to be enabled (the default for new experiences). Characters still rigged with `Motor6D` are skipped with a warning.
+
+## Tests
+
+`lune-tests/run.sh` runs an end-to-end suite in [Lune](https://lune-org.github.io/docs): two peers, a fake Packet bridge, a synthetic Avatar Joint Upgrade rig and whole staggers driven frame by frame. It is not part of the Wally package.

@@ -6,7 +6,7 @@ registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 license = "MIT"
 authors = ["KashTheKing"]
-exclude = ["rokit.toml"]
+exclude = ["rokit.toml", "lune-tests"]
 
 [dependencies]
 Packet = "kashtheking/packet@1.0.0"
