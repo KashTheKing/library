@@ -147,9 +147,37 @@ local function leanTowards(localDir: Vector3, angle: number): CFrame
 	return CFrame.fromAxisAngle(axis.Unit, angle)
 end
 
+-- What we layered onto each joint last frame. The Animator rewrites Transform every frame while
+-- an animation plays, but a rig with nothing playing (a bare NPC) keeps whatever we wrote, and
+-- multiplying onto that again would compound the pose frame after frame. So when the joint
+-- still holds our last write, layer onto the base we used then instead.
+local layered: { [AnimationConstraint]: { Base: CFrame, Written: CFrame } } = setmetatable({}, { __mode = "k" }) :: any
+
+-- Transform is stored at lower precision than a CFrame, so compare with a little slack.
+local function sameTransform(a: CFrame, b: CFrame): boolean
+	return (a.Position - b.Position).Magnitude < 1e-3 and a.XVector:Dot(b.XVector) > 0.99995 and a.YVector:Dot(b.YVector) > 0.99995
+end
+
 local function multiplyTransform(joint: AnimationConstraint?, offset: CFrame)
 	if joint then
-		joint.Transform = offset * joint.Transform
+		local last = layered[joint]
+		local base = if last and sameTransform(joint.Transform, last.Written) then last.Base else joint.Transform
+		local written = offset * base
+		joint.Transform = written
+		layered[joint] = { Base = base, Written = written }
+	end
+end
+
+-- Takes our layer back off, so a rig nothing animates is left in the pose it had before.
+local function clearTransforms(rig: Rig.Rig)
+	for _, joint in rig.Joints do
+		local last = layered[joint]
+		if last then
+			if sameTransform(joint.Transform, last.Written) then
+				joint.Transform = last.Base
+			end
+			layered[joint] = nil
+		end
 	end
 end
 
@@ -345,6 +373,7 @@ end
 function Controller.SetState(self: Controller, state: State, payload: Payload?)
 	local stateTrove = (self :: any)._stateTrove
 	stateTrove:Clean()
+	clearTransforms(self.Rig)
 
 	local previous = self.State
 	self.State = state
@@ -416,6 +445,7 @@ end
 ]=]
 function Controller.Destroy(self: Controller)
 	(self :: any)._stateTrove:Clean()
+	clearTransforms(self.Rig)
 	if self.IsDriver then
 		restoreHumanoid(self)
 		setControlsEnabled(self, true)

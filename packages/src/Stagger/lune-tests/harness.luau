@@ -463,12 +463,16 @@ scenario("NPC: server drives itself", function()
 	check(cc and cc.IsDriver == false, "client only observes NPC")
 	run(0.3)
 	check(#store(hum).moves > 0, "server moved NPC")
+	-- Nothing animates this rig, so the pose must not compound frame after frame.
+	local _, spin = jointsOf(model).Waist.Transform:ToAxisAngle()
+	check(spin < 1, string.format("NPC pose layered once, not compounded (waist %.2f rad)", spin))
 	local t = run(10, function() return Server.GetState(model) ~= S.Staggering end)
 	print(string.format("  decided after %.2fs: %s", t, Server.StateNames[Server.GetState(model)]))
 	local reports = 0
 	for _, e in BRIDGE.log do if e.name == "Stagger.Report" and e.args[1] == model then reports += 1 end end
 	check(reports == 0, "no client report for NPC")
 	run(10, function() return Server.GetState(model) == S.Idle end)
+	for _, j in jointsOf(model) do check(j.Transform.Position.Magnitude < 1e-3 and j.Transform.XVector.X > 0.9999 and j.Transform.YVector.Y > 0.9999, "NPC " .. j.Name .. " pose cleared") end
 	check(Server.GetState(model) == S.Idle and allKinematic(model), "npc idle and restored (state=" .. Server.StateNames[Server.GetState(model)] .. " kinematic=" .. tostring(allKinematic(model)) .. ")")
 	model:Destroy()
 end)
