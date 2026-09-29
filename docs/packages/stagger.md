@@ -13,7 +13,7 @@ description: "GTA V / Euphoria style balance loss for R15: stutter-step to recov
 
 </div>
 
-<span className="library-card-meta">@0.1.0</span>
+<span className="library-card-meta">@0.1.1</span>
 
 **GTA V / Euphoria style balance loss for R15: stutter-step to recover or ragdoll, on Roblox's AnimationConstraint rigs.**
 
@@ -45,7 +45,7 @@ Using the [Studio Wally plugin](../plugins/studio-wally.md):
 Add this to the `[dependencies]` section of your `wally.toml`, then run `wally install`:
 
 ```toml
-Stagger = "kashtheking/stagger@0.1.0"
+Stagger = "kashtheking/stagger@0.1.1"
 ```
 
 Requires **StarterPlayer.AvatarJointUpgrade** to be on (the default for new experiences). Characters still rigged with `Motor6D` are skipped with a warning.

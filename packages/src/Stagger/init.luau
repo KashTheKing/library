@@ -226,7 +226,9 @@ local function applyLocal(character: Model, state: number, payload: Controller.P
 			return Stagger.Binder:Bind(character)
 		end)
 		if not ok or not result then
-			if not warned[character] then
+			-- Clients can get a state before a streamed-in character has all its joints; the
+			-- server drives NPCs and already warned for real unsupported rigs, so stay quiet here.
+			if isServer and not warned[character] then
 				warned[character] = true
 				warn(`Stagger: {character:GetFullName()} is not an R15 AnimationConstraint rig (Avatar Joint Upgrade); skipping`)
 			end

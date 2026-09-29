@@ -1,6 +1,6 @@
 [package]
 name = "kashtheking/stagger"
-version = "0.1.0"
+version = "0.1.1"
 description = "GTA V / Euphoria style balance-loss for R15: characters stutter-step to regain their footing, then either recover or ragdoll, using Roblox's AnimationConstraint rigs. Server authoritative, networked with Packet."
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
