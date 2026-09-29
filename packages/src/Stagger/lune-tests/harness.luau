@@ -108,6 +108,9 @@ local function store(inst) local t = perInstance[inst]; if not t then t = { stat
 local function sigProp(class, name)
 	roblox.implementProperty(class, name, function(self) local s = store(self); s[name] = s[name] or Sig.new(); return s[name] end, function() end)
 end
+-- Network ownership: record who owns each part so tests can check NPCs stay on the server.
+roblox.implementMethod("BasePart", "CanSetNetworkOwnership", function(self) return not self.Anchored end)
+roblox.implementMethod("BasePart", "SetNetworkOwner", function(self, owner) store(self).owner = owner or "server" end)
 roblox.implementMethod("Humanoid", "GetStateEnabled", function(self, state) local v = store(self).states[tostring(state)]; if v == nil then return true end return v end)
 roblox.implementMethod("Humanoid", "SetStateEnabled", function(self, state, enabled) store(self).states[tostring(state)] = enabled end)
 roblox.implementMethod("Humanoid", "Move", function(self, dir, rel) local s = store(self); s.moveDirection = dir; table.insert(s.moves, dir) end)
@@ -455,6 +458,7 @@ scenario("NPC: server drives itself", function()
 	check(Server.Begin(model, roblox.Vector3.xAxis, { Seed = 11 }), "Begin npc")
 	local sc = Server.GetController(model)
 	check(sc.IsDriver == true, "server drives NPC")
+	check(store(model.UpperTorso).owner == "server" and store(model.LeftFoot).owner == "server", "server owns the NPC's physics")
 	local cc = Client.GetController(model)
 	check(cc and cc.IsDriver == false, "client only observes NPC")
 	run(0.3)

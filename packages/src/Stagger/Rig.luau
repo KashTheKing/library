@@ -264,6 +264,22 @@ function Rig.apply(rig: Rig, mode: Mode, strength: number?, damping: number?)
 end
 
 --[=[
+	Gives the server network ownership of every unanchored part of the rig. Used for NPCs, whose
+	stagger the server drives; ownership of a player's character is left to Roblox.
+
+	@function ownByServer
+	@within Rig
+	@param rig Rig
+]=]
+function Rig.ownByServer(rig: Rig)
+	for _, part in rig.Character:GetDescendants() do
+		if part:IsA("BasePart") and not part.Anchored and part:CanSetNetworkOwnership() then
+			part:SetNetworkOwner(nil)
+		end
+	end
+end
+
+--[=[
 	Restores every joint, ball socket, collision flag and `AutoRotate` the snapshot recorded,
 	and forgets the snapshot. `WalkSpeed` and the Humanoid state flags are owner-side and are
 	handled by the [Controller]. Does nothing if no mode was ever applied.

@@ -333,6 +333,12 @@ function setServerState(character: Model, state: number, payload: Controller.Pay
 				setServerState(character, Controller.STATE.Idle)
 			end)
 		end
+		-- NPCs are driven by the server, so the server has to simulate them too. Simulated joints
+		-- split the rig into several assemblies and Roblox hands those to the nearest player, whose
+		-- copy of the Humanoid still thinks it is standing and flings the limp body into the sky.
+		if controller.IsDriver then
+			Rig.ownByServer(rig)
+		end
 	end
 	if state == Controller.STATE.Idle and existing then
 		Rig.restore(existing.Rig)
