@@ -184,7 +184,7 @@ Most packages depend on [sleitnick's Trove and Signal](https://sleitnick.github.
 | [Packet](./packet.md) | `kashtheking/packet` | `@1.0.0` | Suphi Kaner's buffer-based networking library: declare a packet's types once, then fire and respond with typed values. |
 | [Predicates](./predicates.md) | `kashtheking/predicates` | `@0.2.3` | Composable predicate functions for instances: attributes, children, characters, players, and combinations. |
 | [SoundPool](./sound-pool.md) | `kashtheking/sound-pool` | `@0.1.0` (deprecated) | A pool of positional Sound parts for rapid-fire SFX, such as hits in a fighting game. |
-| [Stagger](./stagger.md) | `kashtheking/stagger` | `@0.2.0` | GTA V / Euphoria style balance loss for R15: stutter-step to recover or ragdoll, on Roblox's `AnimationConstraint` rigs. |
+| [Stagger](./stagger.md) | `kashtheking/stagger` | `@0.3.0` | GTA V / Euphoria style balance loss for R15: stutter-step to recover or ragdoll, on Roblox's `AnimationConstraint` rigs. |
 | [StateManager](./state-manager.md) | `kashtheking/state-manager` | `@2.1.1` (deprecated) | A named-state machine with enter/exit callbacks and a Trove per state. |
 | [t](./t.md) | `kashtheking/t` | `@1.0.0` | A runtime type checker: build a check once, validate any value with a clear error message. |
 
