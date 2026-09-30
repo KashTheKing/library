@@ -89,7 +89,9 @@ require(ReplicatedStorage.Packages.Stagger)
 
 **Momentum and re-hits.** Below half balance the lurch stops slowing down (`MomentumHold`), so a character that far gone keeps going until they fall or step back above it. A side-on hit turns the body (`TurnAmount`) so the stumble goes front or back first, and the feet step whichever way the body is going. Hit again mid-stagger and it only gets worse: the lower balance is kept, `ReHitBalanceLoss` comes off on top, and the two lurches add up.
 
-**Getting up.** After a ragdoll the character gets up over `GetUpTime` instead of snapping upright: face down they push up on their arms and pull their knees under, face up they sit up and tuck their feet, then they rise out of a crouch. Every client draws the limbs; the owner moves the body.
+**Getting up.** After a ragdoll the character gets up over `GetUpTime` instead of snapping upright: face down they push up on their arms and pull their knees under, face up they sit up and tuck their feet, then they rise out of a crouch. The body is pulled up by `AlignPosition` / `AlignOrientation` springs, the upper body stays soft so it swings through it, and the lowest limb is kept on the floor. Control comes back the moment they are on their feet. Every client draws the limbs; the owner moves the body.
+
+**Reaction time.** The body is shoved on the frame the hit arrives and the pose flinches straight away, so a stagger reads within a couple of frames of the server's decision. What is left is network latency: a hit decided on the server reaches the victim half a round trip later.
 
 **Determinism.** Everything random is seeded per stagger, so the server and the client agree without talking.
 

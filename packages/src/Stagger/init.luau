@@ -330,10 +330,15 @@ function setServerState(character: Model, state: number, payload: Controller.Pay
 				end)
 			end
 		elseif state == Controller.STATE.Recovering then
-			Rig.apply(rig, "Kinematic")
-			-- From the floor the get-up animation plays first.
-			local getUp = if previous == Controller.STATE.Ragdoll then cfg.GetUpTime else 0
-			startTimer(character, getUp + cfg.GetUpDuration, function()
+			-- From the floor: the upper body stays soft so it swings through the get-up, and the
+			-- stagger is over as soon as the get-up is (the driver hands control back right then).
+			local fromFloor = previous == Controller.STATE.Ragdoll
+			if fromFloor then
+				Rig.apply(rig, "Muscle", cfg.MuscleStrength * 2, cfg.MuscleDamping)
+			else
+				Rig.apply(rig, "Kinematic")
+			end
+			startTimer(character, if fromFloor then cfg.GetUpTime + 0.2 else cfg.GetUpDuration, function()
 				setServerState(character, Controller.STATE.Idle)
 			end)
 		end

@@ -102,7 +102,7 @@ function Balance.new(config: Config, direction: Vector3, intensity: number, seed
 		StepPhase = 0,
 		StepLeg = if rng:NextNumber() < 0.5 then "Left" else "Right",
 		StepIsStutter = false,
-		NextStepAt = config.StepInterval * 0.4,
+		NextStepAt = 0, -- the first catch-up step starts with the hit, not after it
 		StepEndsAt = 0,
 		StepsTaken = 0,
 		Missteps = 0,

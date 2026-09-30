@@ -211,15 +211,19 @@ local function requireFor(side)
 			src = src:gsub("joint%.Transform = ([^\n]+)", "__H.setTransform(joint, %1)"):gsub("joint%.Transform", "__H.transform(joint)")
 			-- Script.Enabled has no Lune default either.
 			src = src:gsub("animate%.Enabled = ([^\n]+)", "__H.setEnabled(animate, %1)"):gsub("animate%.Enabled", "__H.enabled(animate)")
+			-- Nor does BasePart.AssemblyLinearVelocity.
+			src = src:gsub("root%.AssemblyLinearVelocity = ([^\n]+)", "__H.setVelocity(root, %1)"):gsub("root%.AssemblyLinearVelocity", "__H.velocity(root)")
 		end
 		local env = setmetatable({
 			__H = { localPlayer = function() return cur().Players.LocalPlayer end, floor = function(h) return store(h).floor end,
 				transform = function(j) return store(j)["transform_" .. CURRENT] or roblox.CFrame.identity end,
 				setTransform = function(j, v) store(j)["transform_" .. CURRENT] = v end,
 				enabled = function(x) local v = store(x).enabled; if v == nil then return true end return v end,
-				setEnabled = function(x, v) store(x).enabled = v end },
+				setEnabled = function(x, v) store(x).enabled = v end,
+				velocity = function(p) return store(p).lv or roblox.Vector3.zero end,
+				setVelocity = function(p, v) store(p).lv = v end },
 			script = ms, game = game, workspace = workspaceFolder,
-			Enum = roblox.Enum, Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Random = RandomShim,
+			Enum = roblox.Enum, Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Random = RandomShim, Instance = roblox.Instance,
 			RaycastParams = { new = function() return {} end }, -- no geometry here: every raycast misses
 			task = taskShim, require = nil, _G_BRIDGE = BRIDGE,
 			warn = function(...) table.insert(peer.warnings, table.concat({ ... }, " ")) end,
@@ -377,6 +381,7 @@ scenario("Player character: stagger, client drives, recovers, everything restore
 	check(Server.GetState(model) == S.Staggering, "server Staggering")
 	check(Client.GetState(model) == S.Staggering, "client Staggering via packet")
 	check(store(animate).enabled == false, "Animate paused while staggering")
+	check((store(parts.HumanoidRootPart).lv or roblox.Vector3.zero).Magnitude > 1, "body shoved on the frame of the hit")
 	check(model:HasTag("Staggering"), "tag added")
 	check(model:GetAttribute("StaggerState") == S.Staggering, "attribute set")
 	check(#BRIDGE.log >= 1 and BRIDGE.log[#BRIDGE.log].name == "Stagger.State", "state packet sent")
@@ -459,16 +464,17 @@ scenario("Player character: heavy hit falls, ragdolls, auto gets up", function()
 	-- Heavy preset: RagdollDuration 4.5
 	local t2 = run(10, function() return Server.GetState(model) == S.Recovering end)
 	check(math.abs(t2 + 0.2 - 4.5) < 0.1, string.format("stood up after RagdollDuration (%.2fs + 0.2s)", t2))
-	check(allKinematic(model), "kinematic again")
-	-- The get-up animation plays first: still low and in Physics partway through.
+	-- Getting up: legs firm, upper body soft so it swings, root pulled up by springs.
+	check(joints.LeftHip.IsKinematic and not joints.Waist.IsKinematic, "legs firm, upper body soft while getting up")
 	run(0.4)
 	check(hs.changes[#hs.changes] == roblox.Enum.HumanoidStateType.Physics, "Physics while getting up")
-	check(parts.HumanoidRootPart.CFrame.UpVector.Y < 0.95, "not snapped upright")
+	check(parts.HumanoidRootPart:FindFirstChildOfClass("AlignPosition") ~= nil, "springs pull the body up, no CFrame snap")
 	run(1.0)
-	check(hs.changes[#hs.changes] == roblox.Enum.HumanoidStateType.GettingUp, "GettingUp once the animation ends")
-	check(parts.HumanoidRootPart.CFrame.UpVector.Y > 0.99, "root upright")
+	check(hs.changes[#hs.changes] == roblox.Enum.HumanoidStateType.GettingUp, "GettingUp once on their feet")
+	check(parts.HumanoidRootPart:FindFirstChildOfClass("AlignPosition") == nil, "springs released")
+	check(hum.WalkSpeed == 16 and Server.GetState(model) == S.Recovering, "ready to move before the server calls it over")
 	local t3 = run(5, function() return Server.GetState(model) == S.Idle end)
-	check(math.abs(t3 + 1.4 - 2.1) < 0.1, string.format("idle after GetUpTime + GetUpDuration (%.2fs + 1.4s)", t3))
+	check(math.abs(t3 + 1.4 - 1.5) < 0.1, string.format("idle right after the get-up (%.2fs + 1.4s)", t3))
 	check(recoveredSignal == 1, "Recovered fired once")
 	check(hum.WalkSpeed == 16 and hum:GetStateEnabled(roblox.Enum.HumanoidStateType.GettingUp) == true, "humanoid restored")
 	c1:Disconnect(); c2:Disconnect()
@@ -511,7 +517,7 @@ scenario("Direct Ragdoll with RagdollDuration 0 waits for Recover; Stop cancels"
 	check(Server.Begin(model, roblox.Vector3.xAxis) == false, "Begin refused while ragdolled")
 	Server.Recover(model)
 	check(Server.GetState(model) == S.Recovering, "recovering")
-	run(2.3) -- get-up animation + GetUpDuration
+	run(1.7) -- get-up animation
 	check(Server.GetState(model) == S.Idle, "idle")
 
 	check(Server.Begin(model, roblox.Vector3.xAxis, { Preset = "Drunk", Seed = 5 }), "begin drunk")
@@ -560,18 +566,21 @@ end)
 scenario("Side hits turn the body; straight hits do not", function()
 	local model = playerCharacter("Kash")
 	local root = model.HumanoidRootPart
-	local function yawAfter(dir)
+	-- No physics engine here, so check the spin constraint the driver sets up instead.
+	local function spinAfter(dir)
 		root.CFrame = roblox.CFrame.new(root.CFrame.Position)
 		Server.Begin(model, dir, { Seed = 5 })
-		run(0.6)
-		local look = root.CFrame.LookVector
+		run(0.1)
+		local spin = root:FindFirstChildOfClass("AngularVelocity")
+		local rate = if spin and spin.Enabled then spin.AngularVelocity.Y else 0
 		Server.Stop(model)
 		run(0.1)
-		return math.deg(math.acos(math.clamp(-look.Z, -1, 1)))
+		return rate
 	end
-	check(yawAfter(roblox.Vector3.xAxis) > 45, "hit from the side turns the body")
-	check(yawAfter(roblox.Vector3.zAxis) < 5, "hit from the front does not turn")
-	check(yawAfter(-roblox.Vector3.zAxis) < 5, "hit from behind does not turn")
+	check(math.abs(spinAfter(roblox.Vector3.xAxis)) > 1, "hit from the side spins the body")
+	check(spinAfter(roblox.Vector3.zAxis) == 0, "hit from the front does not turn")
+	check(spinAfter(-roblox.Vector3.zAxis) == 0, "hit from behind does not turn")
+	check(root:FindFirstChildOfClass("AngularVelocity") == nil, "spin constraint cleaned up")
 	model:Destroy(); localPlayer.Character = nil
 end)
 

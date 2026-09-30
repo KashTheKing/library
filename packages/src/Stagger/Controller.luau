@@ -54,6 +54,7 @@ export type Controller = {
 	GetUp: any,
 	PausedAnimate: Instance?,
 	MoveIntent: Vector3,
+	Spin: AngularVelocity?,
 	Saved: { WalkSpeed: number, Jumping: boolean, GettingUp: boolean, FallingDown: boolean }?,
 	OnOutcome: ((controller: Controller, outcome: Balance.Outcome) -> ())?,
 
@@ -222,7 +223,10 @@ local function poseStaggering(self: Controller)
 	local t = balance.Time
 
 	local dirLocal = root.CFrame:VectorToObjectSpace(balance.Direction)
-	local lean = balance:Lean()
+	-- The flinch: a sharp extra snap with the hit that fades over a fifth of a second, so the
+	-- body reacts on the first frame instead of easing into the lean.
+	local flinch = math.max(0, 1 - t / 0.2) ^ 2 * 0.45 * math.min(self.Intensity, 2)
+	local lean = balance:Lean() + flinch
 	local sway = balance.Sway
 	local raise = balance:ArmRaise()
 
@@ -276,13 +280,18 @@ local function updateStaggering(self: Controller, dt: number)
 
 	local outcome = balance:Step(dt)
 
-	-- Turn with the hit.
-	local turnLeft = self.TurnLeft
-	if math.abs(turnLeft) > 1e-3 then
-		local turn = math.clamp(turnLeft, -cfg.TurnSpeed * dt, cfg.TurnSpeed * dt)
-		local root = self.Rig.RootPart
-		root.CFrame *= CFrame.Angles(0, turn, 0)
-		self.TurnLeft = turnLeft - turn
+	-- Turn with the hit: a spin constraint on the root, running until the turn is used up.
+	local spin = self.Spin
+	if spin then
+		local turnLeft = self.TurnLeft
+		if math.abs(turnLeft) > 1e-3 then
+			local rate = math.sign(turnLeft) * math.min(cfg.TurnSpeed, math.abs(turnLeft) / math.max(dt, 1e-3))
+			spin.AngularVelocity = Vector3.new(0, rate, 0)
+			spin.Enabled = true
+			self.TurnLeft = turnLeft - rate * dt
+		else
+			spin.Enabled = false
+		end
 	end
 
 	-- Off a ledge: no floor for a while means the feet cannot save this.
@@ -355,7 +364,7 @@ local rad = math.rad
 local GET_UP = {
 	FaceDown = {
 		Pitch = { { 0, 90 }, { 0.35, 55 }, { 0.65, 25 }, { 1, 0 } },
-		Height = { { 0, 0.9 }, { 0.35, 1.7 }, { 0.65, 2.1 }, { 1, 1 } },
+		Height = { { 0, 0.9 }, { 0.35, 1.35 }, { 0.65, 1.9 }, { 1, 1 } },
 		Hip = { { 0, 0 }, { 0.35, 100 }, { 0.65, 75 }, { 1, 0 } },
 		Knee = { { 0, 0 }, { 0.35, -115 }, { 0.65, -95 }, { 1, 0 } },
 		Shoulder = { { 0, 60 }, { 0.2, 95 }, { 0.5, 60 }, { 0.8, 15 }, { 1, 0 } },
@@ -425,16 +434,40 @@ local function poseGettingUp(self: Controller, plan: GetUpPlan)
 	multiplyTransform(joints.Waist, CFrame.Angles(-rad(keyed(keys.Waist, u)), 0, 0))
 end
 
--- Driver only: carry the body from the floor to standing. Returns true once standing.
-local function moveGettingUp(self: Controller, plan: GetUpPlan): boolean
+-- Driver only: springs that carry the root from the floor to standing. The body is pulled toward
+-- each keyframe rather than placed on it, so it has weight and lags a little; the upper body is
+-- soft (Muscle mode on the server) and swings with it.
+local function makeGetUpDrive(self: Controller, trove: any): (AlignPosition, AlignOrientation)
+	local root = self.Rig.RootPart
+	local attachment = trove:Add(Instance.new("Attachment"))
+	attachment.Name = "StaggerGetUp"
+	attachment.Parent = root
+	local position = trove:Add(Instance.new("AlignPosition"))
+	position.Mode = Enum.PositionAlignmentMode.OneAttachment
+	position.Attachment0 = attachment
+	position.Responsiveness = 30
+	position.MaxForce = math.huge -- Responsiveness alone sets how hard it pulls
+	position.Position = root.CFrame.Position
+	position.Parent = root
+	local orientation = trove:Add(Instance.new("AlignOrientation"))
+	orientation.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	orientation.Attachment0 = attachment
+	orientation.Responsiveness = 25
+	orientation.MaxTorque = math.huge
+	orientation.CFrame = root.CFrame
+	orientation.Parent = root
+	return position, orientation
+end
+
+-- Driver only: move the spring targets along the get-up. Returns true once standing.
+local function moveGettingUp(self: Controller, plan: GetUpPlan, position: AlignPosition, orientation: AlignOrientation): boolean
 	local keys = if plan.FaceDown then GET_UP.FaceDown else GET_UP.FaceUp
 	local u = getUpProgress(self, plan)
 	local pitch = rad(keyed(keys.Pitch, u))
-	-- Height keys are fractions of the standing height at the end, studs before.
 	local height = if u >= 1 then plan.Stand else lerp(keyed(keys.Height, u), plan.Stand, math.clamp((u - 0.65) / 0.35, 0, 1))
 	local rig = self.Rig
-	-- Keep the body on the floor: whatever the keyframes say, the lowest point of the limbs (as
-	-- posed last frame) is eased down onto the floor, so hands, knees and feet take the weight.
+	-- Keep the body on the floor: whatever the keyframes say, the lowest point of the limbs is
+	-- eased down onto the floor, so hands, knees and feet take the weight.
 	if u < 1 then
 		local lowest = math.huge
 		for _, limb in rig.Limbs do
@@ -443,13 +476,12 @@ local function moveGettingUp(self: Controller, plan: GetUpPlan): boolean
 			lowest = math.min(lowest, cf.Position.Y - reach)
 		end
 		if lowest < math.huge then
-			plan.Lift += (plan.Floor - lowest) * 0.5
+			plan.Lift += (plan.Floor - lowest) * 0.3
 		end
 		height += plan.Lift
 	end
-	rig.RootPart.CFrame = CFrame.new(Vector3.new(plan.Hips.X, plan.Floor, plan.Hips.Z) + Vector3.new(0, height, 0)) * plan.Yaw * CFrame.Angles(-pitch, 0, 0)
-	rig.RootPart.AssemblyLinearVelocity = Vector3.zero
-	rig.RootPart.AssemblyAngularVelocity = Vector3.zero
+	position.Position = Vector3.new(plan.Hips.X, plan.Floor + height, plan.Hips.Z)
+	orientation.CFrame = plan.Yaw * CFrame.Angles(-pitch, 0, 0)
 	return u >= 1
 end
 
@@ -546,6 +578,7 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 
 	local previous = self.State
 	self.State = state
+	self.Spin = nil
 	self.Decided = false
 	self.AirTime = 0
 
@@ -605,10 +638,27 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 	if state == STATE.Staggering then
 		local balance = self.Balance :: Balance.Balance
 		self.TurnLeft = turnFor(self.Rig.RootPart.CFrame:VectorToObjectSpace(balance.Direction), self.Config.TurnAmount)
+		local root = self.Rig.RootPart
+		local spinAttachment = stateTrove:Add(Instance.new("Attachment"))
+		spinAttachment.Name = "StaggerTurn"
+		spinAttachment.Parent = root
+		local spin = stateTrove:Add(Instance.new("AngularVelocity"))
+		spin.Attachment0 = spinAttachment
+		spin.RelativeTo = Enum.ActuatorRelativeTo.World
+		spin.MaxTorque = math.huge
+		spin.Enabled = false
+		spin.Parent = root
+		self.Spin = spin
 		saveHumanoid(self)
 		setControlsEnabled(self, false)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-		humanoid:Move(Vector3.zero, false)
+		-- Shove the body on the frame of the hit; the Humanoid would take a while to get up to
+		-- lurch speed on its own.
+		local velocity = root.AssemblyLinearVelocity
+		local shove = balance.Direction * balance.Speed
+		root.AssemblyLinearVelocity = Vector3.new(shove.X, velocity.Y, shove.Z)
+		humanoid.WalkSpeed = math.clamp(balance.Speed, 0, self.Config.MaxWalkSpeed)
+		humanoid:Move(balance.Direction, false)
 		stateTrove:Connect(RunService.Heartbeat, function(dt)
 			updateStaggering(self, dt)
 		end)
@@ -644,11 +694,18 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		if previous == STATE.Ragdoll then
 			local plan = self.GetUp :: GetUpPlan
 			humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+			local driveTrove = stateTrove:Extend()
+			local position, orientation = makeGetUpDrive(self, driveTrove)
 			local done = false
 			stateTrove:Connect(RunService.Heartbeat, function()
-				if not done and moveGettingUp(self, plan) then
+				if not done and moveGettingUp(self, plan, position, orientation) then
+					-- On their feet: hand the body back to the Humanoid and the player right away,
+					-- rather than waiting for the server to call the stagger over.
 					done = true
+					driveTrove:Clean()
 					humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+					restoreHumanoid(self)
+					setControlsEnabled(self, true)
 				end
 			end)
 		end

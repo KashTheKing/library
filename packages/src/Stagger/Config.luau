@@ -50,7 +50,7 @@
 	.LimpDamping number -- `AngularDamping` while ragdolled. Default `1`.
 	.RagdollDuration number -- Seconds to stay ragdolled before standing up on their own. `0` means stay down until [Stagger.Recover] is called. Default `3`.
 	.GetUpTime number -- Seconds the get-up animation takes after a ragdoll: arms push, knees come under, then the rise. Default `1.3`.
-	.GetUpDuration number -- Seconds after standing up before the stagger is fully over (controls stay off, jumping stays disabled). Default `0.8`.
+	.GetUpDuration number -- Seconds a character who recovered on their feet (never fell) stays in `Recovering` before the stagger is over. After a ragdoll the stagger ends with the get-up instead. Default `0.25`.
 	.DisableControls boolean -- On a player's own client, disable the PlayerModule controls for the duration. Default `true`.
 ]=]
 export type Config = {
@@ -129,7 +129,7 @@ local Default: Config = table.freeze({
 
 	RagdollDuration = 3,
 	GetUpTime = 1.3,
-	GetUpDuration = 0.8,
+	GetUpDuration = 0.25,
 	DisableControls = true,
 })
 Config.Default = Default
