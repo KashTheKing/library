@@ -179,32 +179,43 @@ local function snapshot(rig: Rig)
 	}
 end
 
+-- Every write here replicates, and flipping IsKinematic rebuilds the assembly, so skip no-ops.
 local function setJoint(joint: AnimationConstraint, kinematic: boolean, strength: number?, damping: number?)
 	if not kinematic then
-		if strength then
+		if strength and joint.AngularStrength ~= strength then
 			joint.AngularStrength = strength
 		end
-		if damping then
+		if damping and joint.AngularDamping ~= damping then
 			joint.AngularDamping = damping
 		end
-		joint.LinearStrength = 1
-		joint.LinearDamping = 1
+		if joint.LinearStrength ~= 1 then
+			joint.LinearStrength = 1
+		end
+		if joint.LinearDamping ~= 1 then
+			joint.LinearDamping = 1
+		end
 	end
-	joint.IsKinematic = kinematic
+	if joint.IsKinematic ~= kinematic then
+		joint.IsKinematic = kinematic
+	end
 end
 
 local function setSockets(rig: Rig, enabled: boolean)
 	local snap = rig.Snapshot
 	for _, socket in rig.BallSockets do
-		if enabled then
-			socket.LimitsEnabled = true
-			socket.Enabled = true
-		elseif snap then
-			local s = snap.Sockets[socket]
-			if s then
-				socket.Enabled = s.Enabled
-				socket.LimitsEnabled = s.LimitsEnabled
+		local wantEnabled, wantLimits = true, true
+		if not enabled then
+			local s = snap and snap.Sockets[socket]
+			if not s then
+				continue
 			end
+			wantEnabled, wantLimits = s.Enabled, s.LimitsEnabled
+		end
+		if socket.LimitsEnabled ~= wantLimits then
+			socket.LimitsEnabled = wantLimits
+		end
+		if socket.Enabled ~= wantEnabled then
+			socket.Enabled = wantEnabled
 		end
 	end
 end
@@ -231,11 +242,13 @@ function Rig.apply(rig: Rig, mode: Mode, strength: number?, damping: number?)
 		end
 		setSockets(rig, false)
 		for part, canCollide in (rig.Snapshot :: any).Collide do
-			if part.Parent then
+			if part.Parent and part.CanCollide ~= canCollide then
 				part.CanCollide = canCollide
 			end
 		end
-		humanoid.AutoRotate = (rig.Snapshot :: any).AutoRotate
+		if humanoid.AutoRotate ~= (rig.Snapshot :: any).AutoRotate then
+			humanoid.AutoRotate = (rig.Snapshot :: any).AutoRotate
+		end
 	elseif mode == "Muscle" then
 		for _, name in Rig.LOWER_JOINTS do
 			local joint = rig.Joints[name]
@@ -250,7 +263,9 @@ function Rig.apply(rig: Rig, mode: Mode, strength: number?, damping: number?)
 			end
 		end
 		setSockets(rig, true)
-		humanoid.AutoRotate = false
+		if humanoid.AutoRotate then
+			humanoid.AutoRotate = false
+		end
 	elseif mode == "Limp" then
 		for name, joint in rig.Joints do
 			-- Root has no ball socket: simulated, the non-colliding root tears off, falls through
@@ -258,23 +273,42 @@ function Rig.apply(rig: Rig, mode: Mode, strength: number?, damping: number?)
 			setJoint(joint, name == "Root", strength, damping)
 		end
 		setSockets(rig, true)
-		humanoid.AutoRotate = false
+		if humanoid.AutoRotate then
+			humanoid.AutoRotate = false
+		end
 		rig.RootPart.CanCollide = false
 	end
 end
 
 --[=[
-	Gives the server network ownership of every unanchored part of the rig. Used for NPCs, whose
-	stagger the server drives; ownership of a player's character is left to Roblox.
+	Gives `owner` (a player, or `nil` for the server) network ownership of every unanchored part
+	of the rig, so the peer driving the stagger is the one simulating the body. Used for NPCs;
+	ownership of a player's character is left to Roblox.
 
-	@function ownByServer
+	@function setOwner
+	@within Rig
+	@param rig Rig
+	@param owner Player?
+]=]
+function Rig.setOwner(rig: Rig, owner: Player?)
+	for _, part in rig.Character:GetDescendants() do
+		if part:IsA("BasePart") and not part.Anchored and part:CanSetNetworkOwnership() then
+			part:SetNetworkOwner(owner)
+		end
+	end
+end
+
+--[=[
+	Hands ownership of the rig back to Roblox's automatic assignment once the stagger is over.
+
+	@function releaseOwner
 	@within Rig
 	@param rig Rig
 ]=]
-function Rig.ownByServer(rig: Rig)
+function Rig.releaseOwner(rig: Rig)
 	for _, part in rig.Character:GetDescendants() do
 		if part:IsA("BasePart") and not part.Anchored and part:CanSetNetworkOwnership() then
-			part:SetNetworkOwner(nil)
+			part:SetNetworkOwnershipAuto()
 		end
 	end
 end

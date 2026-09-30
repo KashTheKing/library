@@ -4,7 +4,7 @@ GTA V / Euphoria style balance loss for R15 characters. Shove a character and th
 
 Built on the joints Roblox already gives every character with the **Avatar Joint Upgrade**: `AnimationConstraint` for the animation and `BallSocketConstraint` for the limits. No joint is replaced or added. While staggering the upper body runs as soft "muscles" (`IsKinematic = false` with a low `AngularStrength`) so it lags the procedural pose and reacts to the movement; when the character falls every joint goes limp and the ball sockets take over.
 
-Server authoritative, networked with [Packet](../Packet), controllers managed with [Binder](../Binder).
+Server authoritative, networked with [Packet](../Packet), controllers managed with [Binder](../Binder). Each character is simulated by one peer: a player's own client, or for an NPC the nearest player's client, which is handed network ownership of the body so it moves at full rate instead of being replicated from the server.
 
 Documentation and API reference: **https://kashtheking.com/library/docs/packages/stagger/**
 
@@ -23,7 +23,7 @@ Using the [Studio Wally plugin](../../../plugins/studio-wally):
 Add this to the `[dependencies]` section of your `wally.toml`:
 
 ```toml
-Stagger = "kashtheking/stagger@0.2.0"
+Stagger = "kashtheking/stagger@0.3.0"
 ```
 
 ## Usage

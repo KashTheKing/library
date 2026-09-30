@@ -111,6 +111,7 @@ end
 -- Network ownership: record who owns each part so tests can check NPCs stay on the server.
 roblox.implementMethod("BasePart", "CanSetNetworkOwnership", function(self) return not self.Anchored end)
 roblox.implementMethod("BasePart", "SetNetworkOwner", function(self, owner) store(self).owner = owner or "server" end)
+roblox.implementMethod("BasePart", "SetNetworkOwnershipAuto", function(self) store(self).owner = "auto" end)
 roblox.implementMethod("Humanoid", "GetStateEnabled", function(self, state) local v = store(self).states[tostring(state)]; if v == nil then return true end return v end)
 roblox.implementMethod("Humanoid", "SetStateEnabled", function(self, state, enabled) store(self).states[tostring(state)] = enabled end)
 roblox.implementMethod("Humanoid", "Move", function(self, dir, rel) local s = store(self); s.moveDirection = dir; table.insert(s.moves, dir) end)
@@ -141,7 +142,7 @@ roblox.implementMethod("Folder", "Raycast", function(_, origin)
 end)
 local packages = roblox.Instance.new("Folder"); packages.Name = "Packages"; packages.Parent = game
 
-local localPlayer = { Name = "Kash", Character = nil, ClassName = "Player" }
+local localPlayer = { Name = "Kash", Character = nil, ClassName = "Player", UserId = 1 }
 local players = { [localPlayer] = true }
 local BRIDGE = { log = {}, localPlayer = localPlayer }
 
@@ -154,7 +155,8 @@ local function makePeer(side)
 			Heartbeat = Sig.new(), PreSimulation = Sig.new(), PostSimulation = Sig.new(), RenderStepped = Sig.new(), Stepped = Sig.new() },
 		Players = { LocalPlayer = if isServer then nil else localPlayer, PlayerAdded = Sig.new(), PlayerRemoving = Sig.new(),
 			GetPlayerFromCharacter = function(_, character) for p in players do if p.Character == character then return p end end return nil end,
-			GetPlayers = function() local t = {} for p in players do table.insert(t, p) end return t end },
+			GetPlayers = function() local t = {} for p in players do table.insert(t, p) end return t end,
+			GetPlayerByUserId = function(_, id) for p in players do if p.UserId == id then return p end end return nil end },
 		CollectionService = { GetInstanceAddedSignal = function() return Sig.new() end, GetInstanceRemovedSignal = function() return Sig.new() end, GetTagged = function() return {} end },
 		cache = {},
 		warnings = {},
@@ -177,6 +179,7 @@ roblox.implementProperty("Players", "PlayerAdded", function() return cur().Playe
 roblox.implementProperty("Players", "PlayerRemoving", function() return cur().Players.PlayerRemoving end, function() end)
 roblox.implementMethod("Players", "GetPlayerFromCharacter", function(_, c) return cur().Players.GetPlayerFromCharacter(nil, c) end)
 roblox.implementMethod("Players", "GetPlayers", function() return cur().Players.GetPlayers() end)
+roblox.implementMethod("Players", "GetPlayerByUserId", function(_, id) return cur().Players.GetPlayerByUserId(nil, id) end)
 roblox.implementMethod("CollectionService", "GetInstanceAddedSignal", function() return Sig.new() end)
 roblox.implementMethod("CollectionService", "GetInstanceRemovedSignal", function() return Sig.new() end)
 roblox.implementMethod("CollectionService", "GetTagged", function() return {} end)
@@ -511,6 +514,44 @@ scenario("NPC: server drives itself", function()
 	for _, j in jointsOf(model) do local tf = peerTransform(j, "server") check(tf.Position.Magnitude < 1e-3 and tf.XVector.X > 0.9999 and tf.YVector.Y > 0.9999, "NPC " .. j.Name .. " pose cleared") end
 	check(Server.GetState(model) == S.Idle and allKinematic(model), "npc idle and restored (state=" .. Server.StateNames[Server.GetState(model)] .. " kinematic=" .. tostring(allKinematic(model)) .. ")")
 	model:Destroy()
+end)
+
+scenario("NPC near a player: that client drives, simulates and reports", function()
+	local mine = playerCharacter("Kash")
+	local npc = buildCharacter("Npc2")
+	check(Server.Begin(npc, roblox.Vector3.xAxis, { Seed = 12 }), "Begin npc")
+	local sc, cc = Server.GetController(npc), Client.GetController(npc)
+	check(sc.Driver == localPlayer and sc.IsDriver == false and sc.Balance == nil, "server hands the NPC to the nearby player")
+	check(cc and cc.IsDriver == true and cc.Balance ~= nil, "that client drives it")
+	check(store(npc.UpperTorso).owner == localPlayer and store(npc.LeftFoot).owner == localPlayer, "the driver owns the NPC's physics")
+	run(0.3)
+	check(npc.HumanoidRootPart:FindFirstChildOfClass("LinearVelocity") ~= nil, "the client drives the NPC's lurch")
+	run(10, function() return Server.GetState(npc) ~= S.Staggering end)
+	local reports = 0
+	for _, e in BRIDGE.log do if e.name == "Stagger.Report" and e.args[1] == npc then reports += 1 end end
+	check(reports == 1 and Server.GetState(npc) ~= S.Staggering, "the driver reported the outcome and the server took it (" .. Server.StateNames[Server.GetState(npc)] .. ")")
+	run(10, function() return Server.GetState(npc) == S.Idle end)
+	check(Server.GetState(npc) == S.Idle and allKinematic(npc), "npc idle and restored")
+	check(store(npc.UpperTorso).owner == "auto", "ownership handed back to Roblox")
+	check(mine.Humanoid.WalkSpeed == 16, "driving an NPC leaves the player's own Humanoid alone")
+	npc:Destroy(); mine:Destroy(); localPlayer.Character = nil
+end)
+
+scenario("NPC driver leaves: the server takes over", function()
+	local mine = playerCharacter("Kash")
+	local npc = buildCharacter("Npc5")
+	Server.Begin(npc, roblox.Vector3.xAxis, { Preset = "Drunk", Seed = 5 })
+	run(0.5)
+	check(Server.GetController(npc).Driver == localPlayer, "client driving")
+	peers.server.Players.PlayerRemoving:Fire(localPlayer)
+	local sc = Server.GetController(npc)
+	check(sc.Driver == nil and sc.IsDriver == true and sc.Balance ~= nil, "server now drives")
+	check(store(npc.UpperTorso).owner == "server", "server owns the NPC's physics")
+	local cc = Client.GetController(npc)
+	check(cc and cc.IsDriver == false, "the old driver's client only observes")
+	run(25, function() return Server.GetState(npc) == S.Idle end)
+	check(Server.GetState(npc) == S.Idle, "stagger completes on the server")
+	Server.Stop(npc); npc:Destroy(); mine:Destroy(); localPlayer.Character = nil
 end)
 
 scenario("Direct Ragdoll with RagdollDuration 0 waits for Recover; Stop cancels", function()

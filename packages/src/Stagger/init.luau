@@ -19,7 +19,10 @@
 	**Networking.** The server is the authority: it decides when a stagger starts and ends,
 	switches the joints (which replicate), and broadcasts state with
 	[Packet](/docs/packages/packet). The balance model runs on whoever owns the character's
-	physics (the player's client, or the server for NPCs), and the outcome is reported back.
+	physics and the outcome is reported back: the player's own client for a player, and for an
+	NPC the nearest player's client (within [Stagger.DriverRange]), which is given network
+	ownership of the body for the duration so the stagger and the ragdoll are simulated at full
+	rate instead of replicated from the server. With nobody near, the server drives the NPC.
 	Controllers are managed by a [Binder](/docs/packages/binder), so every staggering character
 	carries the `Staggering` tag for the duration.
 
@@ -128,6 +131,15 @@ Stagger.TAG = "Staggering"
 Stagger.ATTRIBUTE = "StaggerState"
 
 --[=[
+	@prop DriverRange number
+	@within Stagger
+	How close (studs) a player has to be to an NPC to be handed its stagger to drive and
+	simulate. Keep it well inside your streaming radius, since that player needs the NPC
+	streamed in. Beyond it the server drives. Default `128`.
+]=]
+Stagger.DriverRange = 128
+
+--[=[
 	@prop Presets { [string]: Config }
 	@within Stagger
 	@readonly
@@ -216,8 +228,9 @@ local function fireSignals(character: Model, state: number, previous: number)
 	end
 end
 
--- Applies a state on this peer: binds/unbinds the controller and forwards to it.
-local function applyLocal(character: Model, state: number, payload: Controller.Payload?)
+-- Applies a state on this peer: binds/unbinds the controller and forwards to it. `driver` is the
+-- player simulating an NPC (nil: the server, or the character's own player).
+local function applyLocal(character: Model, state: number, payload: Controller.Payload?, driver: Player?)
 	local controller = Stagger.Binder:GetBinding(character)
 	local previous = if controller then controller.State else Controller.STATE.Idle
 
@@ -245,6 +258,7 @@ local function applyLocal(character: Model, state: number, payload: Controller.P
 		end
 		controller = result
 	end
+	controller:SetDriver(driver)
 	controller:SetState(state, payload)
 	fireSignals(character, state, previous)
 end
@@ -296,7 +310,7 @@ local function watchCharacter(controller: Controller.Controller)
 			Stagger.Binder:Unbind(character)
 			setAttribute(character, Controller.STATE.Idle)
 			fireSignals(character, Controller.STATE.Idle, previous)
-			Packets.State:Fire(character, Controller.STATE.Idle, Vector3.zero, 0, 0, "")
+			Packets.State:Fire(character, Controller.STATE.Idle, Vector3.zero, 0, 0, "", 0)
 		end
 	end)
 	trove:Connect(character.AncestryChanged, function()
@@ -307,6 +321,44 @@ local function watchCharacter(controller: Controller.Controller)
 	end)
 end
 
+local function driverId(controller: Controller.Controller?): number
+	local driver = controller and controller.Driver
+	return if driver then driver.UserId else 0
+end
+
+-- The nearest player to an NPC, within Stagger.DriverRange, or nil for the server to drive it.
+local function pickDriver(character: Model): Player?
+	local root = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return nil
+	end
+	local best: Player?, bestDistance = nil, Stagger.DriverRange
+	for _, player in Players:GetPlayers() do
+		local other = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local distance = if other then (other.CFrame.Position - root.CFrame.Position).Magnitude else math.huge
+		if distance <= bestDistance then
+			best, bestDistance = player, distance
+		end
+	end
+	return best
+end
+
+-- Moves an NPC's stagger to another driver (nil: the server) mid-way: the new driver picks up
+-- the current state and everyone is told who simulates it now.
+local function handoff(character: Model, driver: Player?)
+	local controller = Stagger.Binder:GetBinding(character)
+	if not controller or controller.State == Controller.STATE.Idle then
+		return
+	end
+	if controller.State == Controller.STATE.Staggering then
+		clearTimer(character) -- the take-over fallback below; the server needs none
+	end
+	controller:SetDriver(driver)
+	controller:SetState(controller.State)
+	Rig.setOwner(controller.Rig, driver)
+	Packets.State:Fire(character, controller.State, controller.Direction, controller.Seed, controller.Intensity, controller.Preset, driverId(controller))
+end
+
 function setServerState(character: Model, state: number, payload: Controller.Payload?)
 	local existing = Stagger.Binder:GetBinding(character)
 	local wasBound = existing ~= nil
@@ -314,9 +366,12 @@ function setServerState(character: Model, state: number, payload: Controller.Pay
 	if state == previous and state ~= Controller.STATE.Staggering then
 		return
 	end
+	local isNpc = Players:GetPlayerFromCharacter(character) == nil
+	-- An NPC keeps one driver for the whole stagger, picked when it starts.
+	local driver = if existing then existing.Driver elseif isNpc and state ~= Controller.STATE.Idle then pickDriver(character) else nil
 
 	clearTimer(character)
-	applyLocal(character, state, payload)
+	applyLocal(character, state, payload, driver)
 	local controller = Stagger.Binder:GetBinding(character)
 	if state ~= Controller.STATE.Idle and not controller then
 		return -- unsupported rig; applyLocal warned
@@ -331,6 +386,13 @@ function setServerState(character: Model, state: number, payload: Controller.Pay
 		local cfg = controller.Config
 		if state == Controller.STATE.Staggering then
 			Rig.apply(rig, "Muscle", cfg.MuscleStrength, cfg.MuscleDamping)
+			-- A client driving an NPC reports the outcome; if it never does (the NPC streamed out
+			-- on it), the server takes the stagger over rather than leave the NPC frozen.
+			if controller.Driver and cfg.MaxDuration < math.huge then
+				startTimer(character, cfg.MaxDuration + 1, function()
+					handoff(character, nil)
+				end)
+			end
 		elseif state == Controller.STATE.Ragdoll then
 			Rig.apply(rig, "Limp", cfg.LimpStrength, cfg.LimpDamping)
 			if cfg.RagdollDuration > 0 then
@@ -351,15 +413,19 @@ function setServerState(character: Model, state: number, payload: Controller.Pay
 				setServerState(character, Controller.STATE.Idle)
 			end)
 		end
-		-- NPCs are driven by the server, so the server has to simulate them too. Simulated joints
-		-- split the rig into several assemblies and Roblox hands those to the nearest player, whose
+		-- The driver simulates the NPC's body. Simulated joints split the rig into several
+		-- assemblies, and left to Roblox those go to whichever player happens to be nearest, whose
 		-- copy of the Humanoid still thinks it is standing and flings the limp body into the sky.
-		if controller.IsDriver then
-			Rig.ownByServer(rig)
+		-- Set on every change, since each mode makes new assemblies.
+		if isNpc then
+			Rig.setOwner(rig, controller.Driver)
 		end
 	end
 	if state == Controller.STATE.Idle and existing then
 		Rig.restore(existing.Rig)
+		if isNpc then
+			Rig.releaseOwner(existing.Rig)
+		end
 	end
 
 	setAttribute(character, state)
@@ -370,7 +436,8 @@ function setServerState(character: Model, state: number, payload: Controller.Pay
 		if p then p.Direction else Vector3.zero,
 		if p then p.Seed else 0,
 		if p then p.Intensity else 0,
-		if p then p.Preset else ""
+		if p then p.Preset else "",
+		driverId(controller)
 	)
 end
 
@@ -568,11 +635,15 @@ Stagger.IsSupported = Rig.isSupported
 
 if isServer then
 	Packets.Report.OnServerEvent:Connect(function(player: Player, character: Instance?, state: number)
-		if not character or player.Character ~= character or not character:IsA("Model") then
+		if not character or not character:IsA("Model") then
 			return
 		end
 		local controller = Stagger.Binder:GetBinding(character)
 		if not controller or controller.State ~= Controller.STATE.Staggering then
+			return
+		end
+		-- Only the peer simulating the character has a say: its own player, or the NPC's driver.
+		if player.Character ~= character and controller.Driver ~= player then
 			return
 		end
 		if state == Controller.STATE.Ragdoll or state == Controller.STATE.Recovering then
@@ -586,12 +657,22 @@ if isServer then
 		for _, character in Stagger.Binder:GetInstances() do
 			local controller = Stagger.Binder:GetBinding(character)
 			if controller then
-				Packets.State:FireClient(player, character, controller.State, controller.Direction, controller.Seed, controller.Intensity, controller.Preset)
+				Packets.State:FireClient(player, character, controller.State, controller.Direction, controller.Seed, controller.Intensity, controller.Preset, driverId(controller))
+			end
+		end
+	end)
+
+	-- A leaving player takes nothing with them: any NPC they were driving goes to the server.
+	Players.PlayerRemoving:Connect(function(player)
+		for _, character in Stagger.Binder:GetInstances() do
+			local controller = Stagger.Binder:GetBinding(character)
+			if controller and controller.Driver == player then
+				handoff(character :: Model, nil)
 			end
 		end
 	end)
 else
-	Packets.State.OnClientEvent:Connect(function(character: Instance?, state: number, direction: Vector3, seed: number, intensity: number, preset: string)
+	Packets.State.OnClientEvent:Connect(function(character: Instance?, state: number, direction: Vector3, seed: number, intensity: number, preset: string, driverId: number)
 		if not character or not character:IsA("Model") then
 			return
 		end
@@ -605,7 +686,8 @@ else
 				Config = getPreset(preset),
 			}
 		end
-		applyLocal(character, state, payload)
+		local driver = if driverId > 0 then Players:GetPlayerByUserId(driverId) else nil
+		applyLocal(character, state, payload, driver)
 		local controller = Stagger.Binder:GetBinding(character)
 		if controller and not controller.OnOutcome then
 			controller.OnOutcome = function(c, outcome)

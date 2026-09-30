@@ -13,7 +13,7 @@ description: "GTA V / Euphoria style balance loss for R15: stutter-step to recov
 
 </div>
 
-<span className="library-card-meta">@0.2.0</span>
+<span className="library-card-meta">@0.3.0</span>
 
 **GTA V / Euphoria style balance loss for R15: stutter-step to recover or ragdoll, on Roblox's AnimationConstraint rigs.**
 
@@ -45,7 +45,7 @@ Using the [Studio Wally plugin](../plugins/studio-wally.md):
 Add this to the `[dependencies]` section of your `wally.toml`, then run `wally install`:
 
 ```toml
-Stagger = "kashtheking/stagger@0.2.0"
+Stagger = "kashtheking/stagger@0.3.0"
 ```
 
 Requires **StarterPlayer.AvatarJointUpgrade** to be on (the default for new experiences). Characters still rigged with `Motor6D` are skipped with a warning.
@@ -85,7 +85,7 @@ require(ReplicatedStorage.Packages.Stagger)
 
 **Authority.** The server owns the state (`Idle`, `Staggering`, `Ragdoll`, `Recovering`), switches the joints (`IsKinematic`, `AngularStrength`, `AngularDamping`, ball socket limits, root collision), writes the `StaggerState` attribute and the `Staggering` tag, and broadcasts every change with [Packet](./packet.md).
 
-**Simulation.** The balance model runs on whoever owns the character's physics: the player's client for their own character, the server for NPCs. Every `Heartbeat` it advances the model, drives the Humanoid with `Humanoid:Move` pulses (moving only while a foot is in the air, which is the "step forward little by little"), and every `PreSimulation` it multiplies the procedural pose (lean, sway, arms out and flailing, leg swing, head counter-rotation) into each joint's `Transform`, the way Roblox recommends layering procedural animation on `AnimationConstraint`. When the model decides, the client reports the outcome with a second packet and the server applies it. `Transform` never replicates, so every other client runs its own copy of the same seeded model just to draw the pose, while the movement itself arrives as replicated physics.
+**Simulation.** The balance model runs on whoever owns the character's physics. For a player that is their own client. For an NPC it is the nearest player's client (within `Stagger.DriverRange`, 128 studs by default), which is handed network ownership of the body for the duration: the stagger and the ragdoll are then simulated at full rate on that client and replicated like any player's character, instead of being simulated on the server and sent at its physics send rate, which is what makes a server-owned ragdoll look choppy. With nobody near, the server drives the NPC itself, and if the driver leaves mid-way the server takes over. `Stagger.GetController(npc).Driver` is that player (`nil` while the server drives), which is where to send anything only the simulating client can apply, such as a throw. Every `Heartbeat` it advances the model, drives the Humanoid with `Humanoid:Move` pulses (moving only while a foot is in the air, which is the "step forward little by little"), and every `PreSimulation` it multiplies the procedural pose (lean, sway, arms out and flailing, leg swing, head counter-rotation) into each joint's `Transform`, the way Roblox recommends layering procedural animation on `AnimationConstraint`. When the model decides, the client reports the outcome with a second packet and the server applies it. `Transform` never replicates, so every other client runs its own copy of the same seeded model just to draw the pose, while the movement itself arrives as replicated physics.
 
 **Steering.** Walk input bends the lurch towards where the player is walking (`Steering`, radians per second), so they can guide a stumble but not cancel it. Walking *with* the stumble is catching yourself: it earns balance back (`CatchGain`) and bleeds the lurch (`CatchBrake`), so a player who runs it out recovers, and one who fights it or does nothing falls. A stagger that starts in mid-air ragdolls instead (`RagdollInAir`). The lurch itself is a horizontal `LinearVelocity` on the root with `WalkSpeed` at 0, so no control script can override it.
 

@@ -6,7 +6,8 @@
 	the stagger ends or the character leaves.
 
 	Only the **driver** does real work: the network owner of the character, which is the
-	player's own client for player characters and the server for NPCs. The driver runs the
+	player's own client for player characters and, for NPCs, the client of the nearest player
+	(the server when nobody is near). The driver runs the
 	[Balance] model every `Heartbeat`, turns it into `Humanoid:Move` pulses (the little
 	catch-up steps), writes the procedural pose into each joint's `Transform` during
 	`PreSimulation` (leaning, arms out, leg swings, head counter-rotation), and reports the
@@ -41,6 +42,7 @@ export type Controller = {
 	Rig: Rig.Rig,
 	Humanoid: Humanoid,
 	IsDriver: boolean,
+	Driver: Player?,
 	State: State,
 	Config: Config.Config,
 	Preset: string,
@@ -58,6 +60,7 @@ export type Controller = {
 	Saved: { WalkSpeed: number, Jumping: boolean, GettingUp: boolean, FallingDown: boolean }?,
 	OnOutcome: ((controller: Controller, outcome: Balance.Outcome) -> ())?,
 
+	SetDriver: (self: Controller, driver: Player?) -> (),
 	SetState: (self: Controller, state: State, payload: Payload?) -> (),
 	Destroy: (self: Controller) -> (),
 }
@@ -70,8 +73,10 @@ Controller.STATE = STATE
 
 local isServer = RunService:IsServer()
 
-local function isDriverFor(character: Model): boolean
-	local player = Players:GetPlayerFromCharacter(character)
+-- The peer that simulates the character: its own player for a player character, otherwise the
+-- driver the server picked (a nearby player), or the server when there is none.
+local function isDriverFor(character: Model, driver: Player?): boolean
+	local player = Players:GetPlayerFromCharacter(character) or driver
 	if isServer then
 		return player == nil
 	end
@@ -90,7 +95,8 @@ function Controller.new(character: Model, trove: Trove, rig: Rig.Rig): Controlle
 		Trove = trove,
 		Rig = rig,
 		Humanoid = rig.Humanoid,
-		IsDriver = isDriverFor(character),
+		IsDriver = isDriverFor(character, nil),
+		Driver = nil,
 		State = STATE.Idle,
 		Config = Config.Default,
 		Preset = "Default",
@@ -177,7 +183,11 @@ local function multiplyTransform(joint: AnimationConstraint?, offset: CFrame)
 		local base = if last and sameTransform(joint.Transform, last.Written) then last.Base else joint.Transform
 		local written = offset * base
 		joint.Transform = written
-		layered[joint] = { Base = base, Written = written }
+		if last then
+			last.Base, last.Written = base, written
+		else
+			layered[joint] = { Base = base, Written = written }
+		end
 	end
 end
 
@@ -309,12 +319,17 @@ local function updateStaggering(self: Controller, dt: number)
 		end
 		self.FaceDirection = face
 		local err = if balance.Speed > 2 then headingError(root.CFrame:VectorToObjectSpace(face)) else 0
+		local rate = 0
 		if math.abs(err) > 0.02 then
-			local rate = math.clamp(err / math.max(dt, 1e-3), -cfg.TurnSpeed, cfg.TurnSpeed)
+			rate = math.clamp(err / math.max(dt, 1e-3), -cfg.TurnSpeed, cfg.TurnSpeed)
+			if not spin.Enabled then
+				spin.Enabled = true
+			end
+		end
+		-- Constraint properties are written only on a real change: on a server-driven NPC every
+		-- write replicates to every client.
+		if math.abs(spin.AngularVelocity.Y - rate) > 1e-3 then
 			spin.AngularVelocity = Vector3.new(0, rate, 0)
-			spin.Enabled = true
-		else
-			spin.AngularVelocity = Vector3.zero
 		end
 	end
 
@@ -334,7 +349,10 @@ local function updateStaggering(self: Controller, dt: number)
 	if drive then
 		local speed = math.min(balance.Speed, cfg.MaxWalkSpeed) * (if balance.Stepping then 1 else 0.25)
 		local velocity = balance.Direction * speed
-		drive.PlaneVelocity = Vector2.new(velocity.X, velocity.Z)
+		local plane = Vector2.new(velocity.X, velocity.Z)
+		if (plane - drive.PlaneVelocity).Magnitude > 0.05 then
+			drive.PlaneVelocity = plane
+		end
 	end
 
 	if outcome ~= "Staggering" then
@@ -579,7 +597,8 @@ local function restoreHumanoid(self: Controller)
 end
 
 local function setControlsEnabled(self: Controller, enabled: boolean)
-	if isServer or not self.Config.DisableControls then
+	-- Only the local player's own character touches the controls; a client driving an NPC does not.
+	if isServer or not self.Config.DisableControls or Players:GetPlayerFromCharacter(self.Character) ~= Players.LocalPlayer then
 		return
 	end
 	local controls = getControls()
@@ -589,6 +608,28 @@ local function setControlsEnabled(self: Controller, enabled: boolean)
 		else
 			controls:Disable()
 		end
+	end
+end
+
+--[=[
+	Tells the controller who simulates the character: `nil` for the server (or the character's
+	own player), a Player for an NPC driven by that player's client. [Stagger] calls it as the
+	state packets arrive, before [Controller:SetState].
+
+	@method SetDriver
+	@within Controller
+	@private
+	@param driver Player?
+]=]
+function Controller.SetDriver(self: Controller, driver: Player?)
+	local wasDriver = self.IsDriver
+	self.Driver = driver
+	self.IsDriver = isDriverFor(self.Character, driver)
+	-- Demoted mid-stagger (the server took the NPC over): give this copy of the Humanoid back its
+	-- settings now, since nothing else on this peer will.
+	if wasDriver and not self.IsDriver and self.State ~= STATE.Idle then
+		restoreHumanoid(self)
+		setControlsEnabled(self, true)
 	end
 end
 
@@ -655,6 +696,16 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 					poseGettingUp(self, plan)
 				end
 			end)
+		end
+	end
+
+	-- An NPC's Animate script runs on the server whoever drives it, so the server pauses it (the
+	-- tracks replicate) for the whole stagger even while a client simulates the body.
+	if isServer and not Players:GetPlayerFromCharacter(self.Character) then
+		if state == STATE.Idle then
+			resumeAnimations(self)
+		else
+			pauseAnimations(self)
 		end
 	end
 
@@ -779,6 +830,7 @@ function Controller.Destroy(self: Controller)
 			self.Humanoid:Move(Vector3.zero, false)
 		end
 	end
+	resumeAnimations(self)
 end
 
 return Controller
