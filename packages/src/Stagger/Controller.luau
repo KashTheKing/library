@@ -52,6 +52,8 @@ export type Controller = {
 	AirTime: number,
 	TurnLeft: number,
 	GetUp: any,
+	PausedAnimate: Instance?,
+	MoveIntent: Vector3,
 	Saved: { WalkSpeed: number, Jumping: boolean, GettingUp: boolean, FallingDown: boolean }?,
 	OnOutcome: ((controller: Controller, outcome: Balance.Outcome) -> ())?,
 
@@ -119,11 +121,19 @@ local function getControls(): any
 	local ok, controls = pcall(function()
 		local player = Players.LocalPlayer
 		local scripts = player:FindFirstChildOfClass("PlayerScripts")
-		local module = scripts and scripts:FindFirstChild("PlayerModule")
+		-- Older places copy PlayerModule into PlayerScripts; newer ones run it from StarterPlayer.
+		local module = (scripts and scripts:FindFirstChild("PlayerModule"))
+			or game:GetService("StarterPlayer"):FindFirstChild("PlayerModule")
 		if not module then
 			return nil
 		end
-		return (require :: any)(module):GetControls()
+		local playerModule = (require :: any)(module)
+		if type(playerModule) == "table" and playerModule.GetControls then
+			return playerModule:GetControls()
+		end
+		-- The StarterPlayer layout has no GetControls; its ControlModule has the same Enable/Disable.
+		local controlModule = module:FindFirstChild("ControlModule")
+		return controlModule and (require :: any)(controlModule)
 	end)
 	controlsCache = if ok and controls then controls else false
 	return controlsCache or nil
@@ -287,14 +297,12 @@ local function updateStaggering(self: Controller, dt: number)
 
 	-- Little steps forward: move only while a foot is in the air, then stop and wobble.
 	humanoid.WalkSpeed = math.clamp(balance.Speed, 0, cfg.MaxWalkSpeed)
-	if balance.Stepping and balance.Speed > 0.1 then
-		humanoid:Move(balance.Direction, false)
-	else
-		humanoid:Move(Vector3.zero, false)
-	end
+	self.MoveIntent = if balance.Stepping and balance.Speed > 0.1 then balance.Direction else Vector3.zero
+	humanoid:Move(self.MoveIntent, false)
 
 	if outcome ~= "Staggering" then
 		self.Decided = true
+		self.MoveIntent = Vector3.zero
 		humanoid:Move(Vector3.zero, false)
 		local onOutcome = self.OnOutcome
 		if onOutcome then
@@ -323,7 +331,7 @@ end
 -- Getting up from the floor is a short procedural animation, not a snap. The plan is worked out
 -- from how the body is lying when it starts: face down pushes up on the arms and pulls the knees
 -- under; face up sits up and tucks the feet. `u` runs 0 -> 1 over `GetUpTime`.
-type GetUpPlan = { Elapsed: number, FaceDown: boolean, Hips: Vector3, Yaw: CFrame, Stand: number }
+type GetUpPlan = { Elapsed: number, FaceDown: boolean, Hips: Vector3, Yaw: CFrame, Stand: number, Floor: number, Lift: number }
 
 local function lerp(a: number, b: number, t: number): number
 	return a + (b - a) * t
@@ -375,9 +383,17 @@ local function planGetUp(self: Controller): GetUpPlan
 		headward = horizontalLook(torso)
 	end
 	local forward = (if faceDown then headward else -headward).Unit
-	local floor = rig.LowerTorso.CFrame.Position.Y - rig.LowerTorso.Size.Y / 2
+	-- The floor under the hips; a lying torso's own size says little about where that is.
+	local hips = rig.LowerTorso.CFrame.Position
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { self.Character }
+	local hit = workspace:Raycast(hips + Vector3.new(0, 2, 0), Vector3.new(0, -8, 0), params)
+	local floor = if hit then hit.Position.Y else hips.Y - 1
 	return {
 		Elapsed = 0,
+		Floor = floor,
+		Lift = 0,
 		FaceDown = faceDown,
 		Hips = Vector3.new(rig.LowerTorso.CFrame.Position.X, floor, rig.LowerTorso.CFrame.Position.Z),
 		Yaw = CFrame.lookAlong(Vector3.zero, forward),
@@ -417,7 +433,21 @@ local function moveGettingUp(self: Controller, plan: GetUpPlan): boolean
 	-- Height keys are fractions of the standing height at the end, studs before.
 	local height = if u >= 1 then plan.Stand else lerp(keyed(keys.Height, u), plan.Stand, math.clamp((u - 0.65) / 0.35, 0, 1))
 	local rig = self.Rig
-	rig.RootPart.CFrame = CFrame.new(plan.Hips + Vector3.new(0, height, 0)) * plan.Yaw * CFrame.Angles(-pitch, 0, 0)
+	-- Keep the body on the floor: whatever the keyframes say, the lowest point of the limbs (as
+	-- posed last frame) is eased down onto the floor, so hands, knees and feet take the weight.
+	if u < 1 then
+		local lowest = math.huge
+		for _, limb in rig.Limbs do
+			local cf, half = limb.CFrame, limb.Size / 2
+			local reach = math.abs(cf.RightVector.Y) * half.X + math.abs(cf.UpVector.Y) * half.Y + math.abs(cf.LookVector.Y) * half.Z
+			lowest = math.min(lowest, cf.Position.Y - reach)
+		end
+		if lowest < math.huge then
+			plan.Lift += (plan.Floor - lowest) * 0.5
+		end
+		height += plan.Lift
+	end
+	rig.RootPart.CFrame = CFrame.new(Vector3.new(plan.Hips.X, plan.Floor, plan.Hips.Z) + Vector3.new(0, height, 0)) * plan.Yaw * CFrame.Angles(-pitch, 0, 0)
 	rig.RootPart.AssemblyLinearVelocity = Vector3.zero
 	rig.RootPart.AssemblyAngularVelocity = Vector3.zero
 	return u >= 1
@@ -429,10 +459,36 @@ end
 
 -- WalkSpeed and SetStateEnabled only matter on the peer that runs the Humanoid, so the driver
 -- saves them once and puts them back when the stagger is over.
+-- The default Animate script would keep playing walk and run cycles under the stagger pose and
+-- the get-up, so it is paused (and its tracks stopped) for the whole stagger on the driver, whose
+-- animations replicate to everyone else.
+local function pauseAnimations(self: Controller)
+	local animate = self.Character:FindFirstChild("Animate")
+	if animate and (animate:IsA("LocalScript") or animate:IsA("Script")) and animate.Enabled then
+		animate.Enabled = false
+		self.PausedAnimate = animate
+	end
+	local animator = self.Humanoid:FindFirstChildOfClass("Animator")
+	if animator then
+		for _, track in animator:GetPlayingAnimationTracks() do
+			track:Stop(0.15)
+		end
+	end
+end
+
+local function resumeAnimations(self: Controller)
+	local animate = self.PausedAnimate
+	self.PausedAnimate = nil
+	if animate and animate.Parent then
+		animate.Enabled = true
+	end
+end
+
 local function saveHumanoid(self: Controller)
 	if self.Saved then
 		return
 	end
+	pauseAnimations(self)
 	local humanoid = self.Humanoid
 	self.Saved = {
 		WalkSpeed = humanoid.WalkSpeed,
@@ -448,6 +504,7 @@ local function restoreHumanoid(self: Controller)
 		return
 	end
 	self.Saved = nil
+	resumeAnimations(self)
 	local humanoid = self.Humanoid
 	if not humanoid.Parent then
 		return
@@ -555,6 +612,13 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		stateTrove:Connect(RunService.Heartbeat, function(dt)
 			updateStaggering(self, dt)
 		end)
+		-- The player's control scripts set Humanoid:Move from input every frame, after Heartbeat.
+		-- Disabling them is best effort (not every PlayerModule layout honours it), so re-apply
+		-- the stagger's own move right before the physics step: input never reaches the body.
+		self.MoveIntent = Vector3.zero
+		stateTrove:Connect(RunService.PreSimulation, function()
+			humanoid:Move(self.MoveIntent, false)
+		end)
 	elseif state == STATE.Ragdoll then
 		saveHumanoid(self)
 		setControlsEnabled(self, false)
@@ -569,6 +633,10 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		end)
 	elseif state == STATE.Recovering then
 		saveHumanoid(self)
+		-- Still no control until the stagger is fully over.
+		stateTrove:Connect(RunService.PreSimulation, function()
+			humanoid:Move(Vector3.zero, false)
+		end)
 		humanoid.WalkSpeed = (self.Saved :: any).WalkSpeed
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, (self.Saved :: any).FallingDown)

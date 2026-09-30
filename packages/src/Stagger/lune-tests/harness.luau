@@ -133,6 +133,7 @@ end
 --------------------------------------------------------------------------------------------------
 local game = roblox.Instance.new("DataModel")
 local workspaceFolder = roblox.Instance.new("Folder"); workspaceFolder.Name = "Workspace"; workspaceFolder.Parent = game
+roblox.implementMethod("Folder", "Raycast", function() return nil end)
 local packages = roblox.Instance.new("Folder"); packages.Name = "Packages"; packages.Parent = game
 
 local localPlayer = { Name = "Kash", Character = nil, ClassName = "Player" }
@@ -208,13 +209,18 @@ local function requireFor(side)
 		-- instances, so keep one Transform per peer.
 		if path:find("/Stagger/") then
 			src = src:gsub("joint%.Transform = ([^\n]+)", "__H.setTransform(joint, %1)"):gsub("joint%.Transform", "__H.transform(joint)")
+			-- Script.Enabled has no Lune default either.
+			src = src:gsub("animate%.Enabled = ([^\n]+)", "__H.setEnabled(animate, %1)"):gsub("animate%.Enabled", "__H.enabled(animate)")
 		end
 		local env = setmetatable({
 			__H = { localPlayer = function() return cur().Players.LocalPlayer end, floor = function(h) return store(h).floor end,
 				transform = function(j) return store(j)["transform_" .. CURRENT] or roblox.CFrame.identity end,
-				setTransform = function(j, v) store(j)["transform_" .. CURRENT] = v end },
+				setTransform = function(j, v) store(j)["transform_" .. CURRENT] = v end,
+				enabled = function(x) local v = store(x).enabled; if v == nil then return true end return v end,
+				setEnabled = function(x, v) store(x).enabled = v end },
 			script = ms, game = game, workspace = workspaceFolder,
 			Enum = roblox.Enum, Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Random = RandomShim,
+			RaycastParams = { new = function() return {} end }, -- no geometry here: every raycast misses
 			task = taskShim, require = nil, _G_BRIDGE = BRIDGE,
 			warn = function(...) table.insert(peer.warnings, table.concat({ ... }, " ")) end,
 		}, { __index = function(_, k) return (getfenv(0))[k] end })
@@ -365,10 +371,12 @@ scenario("Player character: stagger, client drives, recovers, everything restore
 	local states = {}
 	local conn = Client.StateChanged:Connect(function(c, s, prev) table.insert(states, s) end)
 
+	local animate = roblox.Instance.new("LocalScript"); animate.Name = "Animate"; animate.Parent = model
 	local ok = Server.Begin(model, roblox.Vector3.new(1, 0, 0), { Preset = "Light", Intensity = 1, Seed = 7 })
 	check(ok == true, "Begin ok")
 	check(Server.GetState(model) == S.Staggering, "server Staggering")
 	check(Client.GetState(model) == S.Staggering, "client Staggering via packet")
+	check(store(animate).enabled == false, "Animate paused while staggering")
 	check(model:HasTag("Staggering"), "tag added")
 	check(model:GetAttribute("StaggerState") == S.Staggering, "attribute set")
 	check(#BRIDGE.log >= 1 and BRIDGE.log[#BRIDGE.log].name == "Stagger.State", "state packet sent")
@@ -407,6 +415,7 @@ scenario("Player character: stagger, client drives, recovers, everything restore
 
 	run(10, function() return Server.GetState(model) == S.Idle end)
 	check(Server.GetState(model) == S.Idle and Client.GetState(model) == S.Idle, "back to Idle on both peers")
+	check(store(animate).enabled == true, "Animate running again")
 	check(not model:HasTag("Staggering"), "tag removed")
 	check(model:GetAttribute("StaggerState") == nil, "attribute cleared")
 	for n, j in joints do
