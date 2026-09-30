@@ -340,7 +340,7 @@ end
 -- Getting up from the floor is a short procedural animation, not a snap. The plan is worked out
 -- from how the body is lying when it starts: face down pushes up on the arms and pulls the knees
 -- under; face up sits up and tucks the feet. `u` runs 0 -> 1 over `GetUpTime`.
-type GetUpPlan = { Elapsed: number, FaceDown: boolean, Hips: Vector3, Yaw: CFrame, Stand: number, Floor: number, Lift: number }
+type GetUpPlan = { Elapsed: number, FaceDown: boolean, Hips: Vector3, Yaw: CFrame, Stand: number, Floor: number, Lift: number, Airborne: boolean }
 
 local function lerp(a: number, b: number, t: number): number
 	return a + (b - a) * t
@@ -400,6 +400,8 @@ local function planGetUp(self: Controller): GetUpPlan
 	local hit = workspace:Raycast(hips + Vector3.new(0, 2, 0), Vector3.new(0, -8, 0), params)
 	local floor = if hit then hit.Position.Y else hips.Y - 1
 	return {
+		-- Let go in mid-air: there is nothing to get up off, so they just keep falling.
+		Airborne = hit == nil or hips.Y - floor > 2.5,
 		Elapsed = 0,
 		Floor = floor,
 		Lift = 0,
@@ -616,12 +618,14 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 	if state == STATE.Recovering and previous == STATE.Ragdoll and (self.IsDriver or not isServer) then
 		local plan = planGetUp(self)
 		self.GetUp = plan
-		stateTrove:Connect(RunService.PreSimulation, function(dt)
-			plan.Elapsed += dt
-			if getUpProgress(self, plan) < 1 then
-				poseGettingUp(self, plan)
-			end
-		end)
+		if not plan.Airborne then
+			stateTrove:Connect(RunService.PreSimulation, function(dt)
+				plan.Elapsed += dt
+				if getUpProgress(self, plan) < 1 then
+					poseGettingUp(self, plan)
+				end
+			end)
+		end
 	end
 
 	if not self.IsDriver then
@@ -691,8 +695,13 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, (self.Saved :: any).FallingDown)
 		humanoid:Move(Vector3.zero, false)
-		if previous == STATE.Ragdoll then
-			local plan = self.GetUp :: GetUpPlan
+		local plan = self.GetUp :: GetUpPlan?
+		if plan and plan.Airborne then
+			-- No floor to get up off: hand the body straight back and let it fall.
+			humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+			restoreHumanoid(self)
+			setControlsEnabled(self, true)
+		elseif plan then
 			humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 			local driveTrove = stateTrove:Extend()
 			local position, orientation = makeGetUpDrive(self, driveTrove)

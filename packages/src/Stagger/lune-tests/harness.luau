@@ -133,7 +133,12 @@ end
 --------------------------------------------------------------------------------------------------
 local game = roblox.Instance.new("DataModel")
 local workspaceFolder = roblox.Instance.new("Folder"); workspaceFolder.Name = "Workspace"; workspaceFolder.Parent = game
-roblox.implementMethod("Folder", "Raycast", function() return nil end)
+-- Raycasts hit a floor just under where they start, unless a test says the character is in the air.
+local AIRBORNE = false
+roblox.implementMethod("Folder", "Raycast", function(_, origin)
+	if AIRBORNE then return nil end
+	return { Position = roblox.Vector3.new(origin.X, origin.Y - 3, origin.Z) }
+end)
 local packages = roblox.Instance.new("Folder"); packages.Name = "Packages"; packages.Parent = game
 
 local localPlayer = { Name = "Kash", Character = nil, ClassName = "Player" }
@@ -224,7 +229,7 @@ local function requireFor(side)
 				setVelocity = function(p, v) store(p).lv = v end },
 			script = ms, game = game, workspace = workspaceFolder,
 			Enum = roblox.Enum, Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Random = RandomShim, Instance = roblox.Instance,
-			RaycastParams = { new = function() return {} end }, -- no geometry here: every raycast misses
+			RaycastParams = { new = function() return {} end },
 			task = taskShim, require = nil, _G_BRIDGE = BRIDGE,
 			warn = function(...) table.insert(peer.warnings, table.concat({ ... }, " ")) end,
 		}, { __index = function(_, k) return (getfenv(0))[k] end })
@@ -581,6 +586,25 @@ scenario("Side hits turn the body; straight hits do not", function()
 	check(spinAfter(roblox.Vector3.zAxis) == 0, "hit from the front does not turn")
 	check(spinAfter(-roblox.Vector3.zAxis) == 0, "hit from behind does not turn")
 	check(root:FindFirstChildOfClass("AngularVelocity") == nil, "spin constraint cleaned up")
+	model:Destroy(); localPlayer.Character = nil
+end)
+
+scenario("Recover in mid-air keeps falling instead of floating", function()
+	Server.RegisterPreset("Down", Server.Presets.Default, { RagdollDuration = 0 })
+	Client.RegisterPreset("Down", Client.Presets.Default, { RagdollDuration = 0 })
+	local model, hum, parts = playerCharacter("Kash")
+	Server.Ragdoll(model, { Preset = "Down" })
+	run(0.2)
+	AIRBORNE = true
+	Server.Recover(model)
+	run(0.1)
+	AIRBORNE = false
+	local hs = store(hum)
+	check(hs.changes[#hs.changes] == roblox.Enum.HumanoidStateType.Freefall, "Freefall, not a get-up")
+	check(parts.HumanoidRootPart:FindFirstChildOfClass("AlignPosition") == nil, "no springs holding them up")
+	check(hum.WalkSpeed == 16, "control back straight away")
+	run(2)
+	Server.Stop(model)
 	model:Destroy(); localPlayer.Character = nil
 end)
 
