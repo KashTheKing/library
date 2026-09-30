@@ -23,7 +23,7 @@ Using the [Studio Wally plugin](../../../plugins/studio-wally):
 Add this to the `[dependencies]` section of your `wally.toml`:
 
 ```toml
-Stagger = "kashtheking/stagger@0.1.1"
+Stagger = "kashtheking/stagger@0.2.0"
 ```
 
 ## Usage
