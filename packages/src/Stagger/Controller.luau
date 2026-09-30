@@ -54,6 +54,7 @@ export type Controller = {
 	PausedAnimate: Instance?,
 	MoveIntent: Vector3,
 	Spin: AngularVelocity?,
+	FaceDirection: Vector3?,
 	Saved: { WalkSpeed: number, Jumping: boolean, GettingUp: boolean, FallingDown: boolean }?,
 	OnOutcome: ((controller: Controller, outcome: Balance.Outcome) -> ())?,
 
@@ -279,7 +280,15 @@ local function updateStaggering(self: Controller, dt: number)
 	local spin = self.Spin
 	if spin then
 		local root = self.Rig.RootPart
-		local err = headingError(root.CFrame:VectorToObjectSpace(balance.Direction))
+		-- Face a smoothed lurch direction: missteps kick the body sideways and chasing every kick
+		-- would whip it round. Nearly stopped, the direction is just noise, so hold the heading.
+		local face = self.FaceDirection or balance.Direction
+		if balance.Speed > 2 then
+			face = (face + (balance.Direction - face) * math.min(dt * 3, 1))
+			face = if face.Magnitude > 1e-3 then face.Unit else balance.Direction
+		end
+		self.FaceDirection = face
+		local err = if balance.Speed > 2 then headingError(root.CFrame:VectorToObjectSpace(face)) else 0
 		if math.abs(err) > 0.02 then
 			local rate = math.clamp(err / math.max(dt, 1e-3), -cfg.TurnSpeed, cfg.TurnSpeed)
 			spin.AngularVelocity = Vector3.new(0, rate, 0)
@@ -647,6 +656,7 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		spin.Enabled = false
 		spin.Parent = root
 		self.Spin = spin
+		self.FaceDirection = balance.Direction
 		saveHumanoid(self)
 		setControlsEnabled(self, false)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
