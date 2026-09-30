@@ -568,13 +568,15 @@ scenario("Low balance holds the lurch speed; MomentumHold 0 keeps the old slowdo
 	model:Destroy(); localPlayer.Character = nil
 end)
 
-scenario("The body turns to face the way it is thrown", function()
+scenario("By default the body keeps its heading; with TurnSpeed it faces the way it is thrown", function()
+	Server.RegisterPreset("Facing", Server.Presets.Default, { TurnSpeed = 25 })
+	Client.RegisterPreset("Facing", Client.Presets.Default, { TurnSpeed = 25 })
 	local model = playerCharacter("Kash")
 	local root = model.HumanoidRootPart
 	-- No physics engine here, so check the spin constraint the driver sets up instead.
-	local function spinAfter(dir)
+	local function spinAfter(dir, preset)
 		root.CFrame = roblox.CFrame.new(root.CFrame.Position) -- facing -Z
-		Server.Begin(model, dir, { Seed = 5 })
+		Server.Begin(model, dir, { Seed = 5, Preset = preset })
 		run(0.1)
 		local spin = root:FindFirstChildOfClass("AngularVelocity")
 		local rate = if spin and spin.Enabled then spin.AngularVelocity.Y else 0
@@ -582,9 +584,11 @@ scenario("The body turns to face the way it is thrown", function()
 		run(0.1)
 		return rate
 	end
-	check(math.abs(spinAfter(roblox.Vector3.xAxis)) > 1, "thrown sideways: turns")
-	check(math.abs(spinAfter(roblox.Vector3.zAxis)) > 1, "thrown backwards (hit from the front): turns round")
-	check(spinAfter(-roblox.Vector3.zAxis) == 0, "thrown forwards (hit from behind): already facing it")
+	check(spinAfter(roblox.Vector3.zAxis) == 0, "default: shoved backwards, stays facing forward (no flip)")
+	check(spinAfter(roblox.Vector3.xAxis) == 0, "default: shoved sideways, no turn")
+	check(math.abs(spinAfter(roblox.Vector3.xAxis, "Facing")) > 1, "TurnSpeed: thrown sideways, turns")
+	check(math.abs(spinAfter(roblox.Vector3.zAxis, "Facing")) > 1, "TurnSpeed: thrown backwards, turns round")
+	check(spinAfter(-roblox.Vector3.zAxis, "Facing") == 0, "TurnSpeed: thrown forwards, already facing it")
 	check(root:FindFirstChildOfClass("AngularVelocity") == nil, "spin constraint cleaned up")
 	model:Destroy(); localPlayer.Character = nil
 end)
