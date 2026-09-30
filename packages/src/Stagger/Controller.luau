@@ -52,9 +52,9 @@ export type Controller = {
 	AirTime: number,
 	GetUp: any,
 	PausedAnimate: Instance?,
-	MoveIntent: Vector3,
 	Spin: AngularVelocity?,
 	FaceDirection: Vector3?,
+	Drive: LinearVelocity?,
 	Saved: { WalkSpeed: number, Jumping: boolean, GettingUp: boolean, FallingDown: boolean }?,
 	OnOutcome: ((controller: Controller, outcome: Balance.Outcome) -> ())?,
 
@@ -273,6 +273,18 @@ local function updateStaggering(self: Controller, dt: number)
 	local cfg = self.Config
 	local humanoid = self.Humanoid
 
+	-- Steering: the player's walk input bends the lurch towards it, a little at a time, so they
+	-- can guide the stumble but not cancel it.
+	local input = if isServer then nil else humanoid.MoveDirection
+	if input and cfg.Steering > 0 and balance.Speed > 0.5 then
+		local from = Vector3.new(balance.Momentum.X, 0, balance.Momentum.Z)
+		local to = Vector3.new(input.X, 0, input.Z)
+		if from.Magnitude > 1e-3 and to.Magnitude > 0.1 then
+			local angle = math.atan2(from.Unit:Cross(to.Unit).Y, from.Unit:Dot(to.Unit))
+			local turn = math.clamp(angle, -cfg.Steering * dt, cfg.Steering * dt) * math.min(to.Magnitude, 1)
+			balance.Momentum = CFrame.fromAxisAngle(Vector3.yAxis, turn):VectorToWorldSpace(balance.Momentum)
+		end
+	end
 	local outcome = balance:Step(dt)
 
 	-- Face the lurch: a spin constraint keeps turning the body towards where it is being thrown,
@@ -308,15 +320,20 @@ local function updateStaggering(self: Controller, dt: number)
 		self.AirTime = 0
 	end
 
-	-- Little steps forward: move only while a foot is in the air, then stop and wobble.
-	humanoid.WalkSpeed = math.clamp(balance.Speed, 0, cfg.MaxWalkSpeed)
-	self.MoveIntent = if balance.Stepping and balance.Speed > 0.1 then balance.Direction else Vector3.zero
-	humanoid:Move(self.MoveIntent, false)
+	-- Little steps: surge while a foot is in the air, then nearly stop and wobble. The drive is a
+	-- LinearVelocity on the root, so no control script can overwrite it.
+	local drive = self.Drive
+	if drive then
+		local speed = math.min(balance.Speed, cfg.MaxWalkSpeed) * (if balance.Stepping then 1 else 0.25)
+		local velocity = balance.Direction * speed
+		drive.PlaneVelocity = Vector2.new(velocity.X, velocity.Z)
+	end
 
 	if outcome ~= "Staggering" then
 		self.Decided = true
-		self.MoveIntent = Vector3.zero
-		humanoid:Move(Vector3.zero, false)
+		if drive then
+			drive.PlaneVelocity = Vector2.zero
+		end
 		local onOutcome = self.OnOutcome
 		if onOutcome then
 			onOutcome(self, outcome)
@@ -585,6 +602,7 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 	local previous = self.State
 	self.State = state
 	self.Spin = nil
+	self.Drive = nil
 	self.Decided = false
 	self.AirTime = 0
 
@@ -658,27 +676,32 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		self.Spin = spin
 		self.FaceDirection = balance.Direction
 		saveHumanoid(self)
-		setControlsEnabled(self, false)
+		-- With steering the controls stay on so their input can be read; the stagger still
+		-- decides the actual move every frame (below).
+		setControlsEnabled(self, self.Config.Steering > 0)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
 		-- The spin constraint does the turning; don't let the Humanoid swing round towards its
 		-- move direction before the server's AutoRotate change arrives.
 		humanoid.AutoRotate = false
-		-- Shove the body on the frame of the hit; the Humanoid would take a while to get up to
-		-- lurch speed on its own.
+		-- The lurch is driven by a horizontal LinearVelocity on the root: physics, not the
+		-- Humanoid's walking, so input scripts can't overwrite it (walk input only steers, above).
+		-- WalkSpeed 0 stops the Humanoid pulling against it.
+		local drive = stateTrove:Add(Instance.new("LinearVelocity"))
+		drive.Attachment0 = spinAttachment
+		drive.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
+		drive.PrimaryTangentAxis = Vector3.xAxis
+		drive.SecondaryTangentAxis = Vector3.zAxis
+		drive.RelativeTo = Enum.ActuatorRelativeTo.World
+		drive.MaxForce = 1e6
+		local shove = balance.Direction * math.min(balance.Speed, self.Config.MaxWalkSpeed)
+		drive.PlaneVelocity = Vector2.new(shove.X, shove.Z) -- moving on the frame of the hit
+		drive.Parent = root
+		self.Drive = drive
+		humanoid.WalkSpeed = 0
 		local velocity = root.AssemblyLinearVelocity
-		local shove = balance.Direction * balance.Speed
 		root.AssemblyLinearVelocity = Vector3.new(shove.X, velocity.Y, shove.Z)
-		humanoid.WalkSpeed = math.clamp(balance.Speed, 0, self.Config.MaxWalkSpeed)
-		humanoid:Move(balance.Direction, false)
 		stateTrove:Connect(RunService.Heartbeat, function(dt)
 			updateStaggering(self, dt)
-		end)
-		-- The player's control scripts set Humanoid:Move from input every frame, after Heartbeat.
-		-- Disabling them is best effort (not every PlayerModule layout honours it), so re-apply
-		-- the stagger's own move right before the physics step: input never reaches the body.
-		self.MoveIntent = Vector3.zero
-		stateTrove:Connect(RunService.PreSimulation, function()
-			humanoid:Move(self.MoveIntent, false)
 		end)
 	elseif state == STATE.Ragdoll then
 		saveHumanoid(self)

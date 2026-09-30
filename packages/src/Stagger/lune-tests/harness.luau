@@ -218,6 +218,8 @@ local function requireFor(side)
 			src = src:gsub("animate%.Enabled = ([^\n]+)", "__H.setEnabled(animate, %1)"):gsub("animate%.Enabled", "__H.enabled(animate)")
 			-- Nor does BasePart.AssemblyLinearVelocity.
 			src = src:gsub("root%.AssemblyLinearVelocity = ([^\n]+)", "__H.setVelocity(root, %1)"):gsub("root%.AssemblyLinearVelocity", "__H.velocity(root)")
+			-- Nor Humanoid.MoveDirection; tests set store(humanoid).input to play walk input.
+			src = src:gsub("humanoid%.MoveDirection", "__H.moveDirection(humanoid)")
 		end
 		local env = setmetatable({
 			__H = { localPlayer = function() return cur().Players.LocalPlayer end, floor = function(h) return store(h).floor end,
@@ -226,9 +228,10 @@ local function requireFor(side)
 				enabled = function(x) local v = store(x).enabled; if v == nil then return true end return v end,
 				setEnabled = function(x, v) store(x).enabled = v end,
 				velocity = function(p) return store(p).lv or roblox.Vector3.zero end,
-				setVelocity = function(p, v) store(p).lv = v end },
+				setVelocity = function(p, v) store(p).lv = v end,
+				moveDirection = function(h) return store(h).input or store(h).moveDirection or roblox.Vector3.zero end },
 			script = ms, game = game, workspace = workspaceFolder,
-			Enum = roblox.Enum, Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Random = RandomShim, Instance = roblox.Instance,
+			Enum = roblox.Enum, Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Random = RandomShim, Instance = roblox.Instance, Vector2 = roblox.Vector2,
 			RaycastParams = { new = function() return {} end },
 			task = taskShim, require = nil, _G_BRIDGE = BRIDGE,
 			warn = function(...) table.insert(peer.warnings, table.concat({ ... }, " ")) end,
@@ -407,10 +410,9 @@ scenario("Player character: stagger, client drives, recovers, everything restore
 	-- Run a few frames: pose written, humanoid moved
 	run(0.5)
 	local hs = store(hum)
-	check(#hs.moves > 0, "Humanoid:Move called")
-	local moved = false
-	for _, m in hs.moves do if m.Magnitude > 0 then moved = true end end
-	check(moved, "moved forward in steps")
+	local drive = parts.HumanoidRootPart:FindFirstChildOfClass("LinearVelocity")
+	check(drive ~= nil and drive.PlaneVelocity.Magnitude > 0, "a LinearVelocity drives the lurch")
+	check(hum.WalkSpeed == 0, "WalkSpeed 0 so the Humanoid doesn't pull against it")
 	check(hum.WalkSpeed ~= 16, "WalkSpeed changed while staggering")
 	check(peerTransform(joints.Root, "client") ~= roblox.CFrame.identity or peerTransform(joints.Waist, "client") ~= roblox.CFrame.identity, "procedural pose applied")
 	check(Server.GetState(model) == S.Staggering, "still staggering after 0.5s")
@@ -496,7 +498,7 @@ scenario("NPC: server drives itself", function()
 	check(cc and cc.IsDriver == false, "client only observes NPC")
 	check(cc.Balance ~= nil, "client runs its own copy of the NPC's balance to draw the pose")
 	run(0.3)
-	check(#store(hum).moves > 0, "server moved NPC")
+	check(model.HumanoidRootPart:FindFirstChildOfClass("LinearVelocity") ~= nil, "server drives the NPC's lurch")
 	-- Nothing animates this rig, so the pose must not compound frame after frame.
 	local _, spin = peerTransform(jointsOf(model).Waist, "server"):ToAxisAngle()
 	check(spin < 1, string.format("NPC pose layered once, not compounded (waist %.2f rad)", spin))
@@ -608,6 +610,22 @@ scenario("Recover in mid-air keeps falling instead of floating", function()
 	check(parts.HumanoidRootPart:FindFirstChildOfClass("AlignPosition") == nil, "no springs holding them up")
 	check(hum.WalkSpeed == 16, "control back straight away")
 	run(2)
+	Server.Stop(model)
+	model:Destroy(); localPlayer.Character = nil
+end)
+
+scenario("Walk input steers the lurch", function()
+	local model, hum = playerCharacter("Kash")
+	Server.Begin(model, roblox.Vector3.xAxis, { Seed = 9, Preset = "Heavy" })
+	local cc = Client.GetController(model)
+	local start = cc.Balance.Direction
+	-- Holding "walk towards +Z" for half a second.
+	store(hum).input = roblox.Vector3.zAxis
+	run(0.5)
+	store(hum).input = nil
+	local steered = cc.Balance.Direction
+	check(steered.Z > start.Z + 0.3, string.format("lurch bent towards the input (z %.2f -> %.2f)", start.Z, steered.Z))
+	check(steered.X > 0, "but not turned right round in half a second")
 	Server.Stop(model)
 	model:Destroy(); localPlayer.Character = nil
 end)

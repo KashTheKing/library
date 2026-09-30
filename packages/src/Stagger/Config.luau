@@ -41,6 +41,7 @@
 	.StepSwing number -- Radians a stepping leg swings forward at the hip. Default `0.7`.
 	.KneeBend number -- Radians the knee bends during a step. Default `0.9`.
 	.HeadCounter number -- How much the head counter-rotates to stay level (0 none, 1 fully). Default `0.7`.
+	.Steering number -- Radians per second the player's walk input can bend the lurch towards where they are walking. `0` ignores input (and turns the controls off for the stagger). Default `2.5`.
 	.TurnSpeed number -- Radians per second the body turns to face the way it is being thrown. `0` (the default) keeps them facing where they were when hit: shoved from the front they stagger backwards. Either way the heading is held so the Humanoid can't swing them round.
 	.ReHitBalanceLoss number -- Extra balance lost when hit again mid-stagger, on top of keeping the lower balance and adding the lurches together. Default `0.2`.
 	.MuscleStrength number -- `AnimationConstraint.AngularStrength` for the upper body while staggering. Below 1 the arms and torso lag the animation and swing with the body: this is the Euphoria look. Default `0.3`.
@@ -76,6 +77,7 @@ export type Config = {
 	StepSwing: number,
 	KneeBend: number,
 	HeadCounter: number,
+	Steering: number,
 	TurnSpeed: number,
 	ReHitBalanceLoss: number,
 
@@ -116,6 +118,7 @@ local Default: Config = table.freeze({
 	StepSwing = 0.7,
 	KneeBend = 0.9,
 	HeadCounter = 0.7,
+	Steering = 2.5,
 	TurnSpeed = 0,
 	ReHitBalanceLoss = 0.2,
 
