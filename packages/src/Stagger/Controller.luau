@@ -51,6 +51,7 @@ export type Controller = {
 	Decided: boolean,
 	AirTime: number,
 	TurnLeft: number,
+	GetUp: any,
 	Saved: { WalkSpeed: number, Jumping: boolean, GettingUp: boolean, FallingDown: boolean }?,
 	OnOutcome: ((controller: Controller, outcome: Balance.Outcome) -> ())?,
 
@@ -319,21 +320,107 @@ local function updateRagdoll(self: Controller)
 	end
 end
 
-local function standUp(self: Controller)
-	local rig = self.Rig
-	local root = rig.RootPart
-	local torso = rig.LowerTorso
-	local look = horizontalLook(rig.UpperTorso.CFrame)
-	-- Put the root where the hips are, upright, facing the way the torso was pointing; with
-	-- the joints kinematic again the whole body snaps to it and GettingUp lifts it to HipHeight.
-	root.CFrame = CFrame.lookAlong(torso.Position, look)
-	root.AssemblyLinearVelocity = Vector3.zero
-	root.AssemblyAngularVelocity = Vector3.zero
-	for _, limb in rig.Limbs do
-		limb.AssemblyLinearVelocity = Vector3.zero
-		limb.AssemblyAngularVelocity = Vector3.zero
+-- Getting up from the floor is a short procedural animation, not a snap. The plan is worked out
+-- from how the body is lying when it starts: face down pushes up on the arms and pulls the knees
+-- under; face up sits up and tucks the feet. `u` runs 0 -> 1 over `GetUpTime`.
+type GetUpPlan = { Elapsed: number, FaceDown: boolean, Hips: Vector3, Yaw: CFrame, Stand: number }
+
+local function lerp(a: number, b: number, t: number): number
+	return a + (b - a) * t
+end
+
+-- Piecewise-linear through keyframes { {u, value}, ... }, eased in and out between them.
+local function keyed(frames: { { number } }, u: number): number
+	for i = 2, #frames do
+		local a, b = frames[i - 1], frames[i]
+		if u <= b[1] then
+			local t = (u - a[1]) / math.max(b[1] - a[1], 1e-4)
+			t = t * t * (3 - 2 * t)
+			return lerp(a[2], b[2], t)
+		end
 	end
-	self.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+	return frames[#frames][2]
+end
+
+local rad = math.rad
+-- Keyframes in degrees (and studs above the floor for Height). Pitch tips the whole body forward.
+local GET_UP = {
+	FaceDown = {
+		Pitch = { { 0, 90 }, { 0.35, 55 }, { 0.65, 25 }, { 1, 0 } },
+		Height = { { 0, 0.9 }, { 0.35, 1.7 }, { 0.65, 2.1 }, { 1, 1 } },
+		Hip = { { 0, 0 }, { 0.35, 100 }, { 0.65, 75 }, { 1, 0 } },
+		Knee = { { 0, 0 }, { 0.35, -115 }, { 0.65, -95 }, { 1, 0 } },
+		Shoulder = { { 0, 60 }, { 0.2, 95 }, { 0.5, 60 }, { 0.8, 15 }, { 1, 0 } },
+		Elbow = { { 0, 60 }, { 0.3, 10 }, { 1, 0 } },
+		Waist = { { 0, 0 }, { 0.35, 15 }, { 0.65, 10 }, { 1, 0 } },
+	},
+	FaceUp = {
+		Pitch = { { 0, -90 }, { 0.4, -15 }, { 0.7, 30 }, { 1, 0 } },
+		Height = { { 0, 0.8 }, { 0.4, 1.1 }, { 0.7, 2 }, { 1, 1 } },
+		Hip = { { 0, 0 }, { 0.4, 85 }, { 0.7, 110 }, { 1, 0 } },
+		Knee = { { 0, 0 }, { 0.4, -30 }, { 0.7, -125 }, { 1, 0 } },
+		Shoulder = { { 0, 10 }, { 0.4, -30 }, { 0.7, 55 }, { 1, 0 } },
+		Elbow = { { 0, 0 }, { 0.4, 30 }, { 0.7, 20 }, { 1, 0 } },
+		Waist = { { 0, 0 }, { 0.4, 25 }, { 0.7, 20 }, { 1, 0 } },
+	},
+}
+
+local function planGetUp(self: Controller): GetUpPlan
+	local rig = self.Rig
+	local torso = rig.UpperTorso.CFrame
+	local faceDown = torso.LookVector.Y < 0
+	-- Face down you get up facing where your head was; face up you sit up towards your feet.
+	local headward = Vector3.new(torso.UpVector.X, 0, torso.UpVector.Z)
+	if headward.Magnitude < 1e-3 then
+		headward = horizontalLook(torso)
+	end
+	local forward = (if faceDown then headward else -headward).Unit
+	local floor = rig.LowerTorso.CFrame.Position.Y - rig.LowerTorso.Size.Y / 2
+	return {
+		Elapsed = 0,
+		FaceDown = faceDown,
+		Hips = Vector3.new(rig.LowerTorso.CFrame.Position.X, floor, rig.LowerTorso.CFrame.Position.Z),
+		Yaw = CFrame.lookAlong(Vector3.zero, forward),
+		Stand = self.Humanoid.HipHeight + rig.RootPart.Size.Y / 2,
+	}
+end
+
+local function getUpProgress(self: Controller, plan: GetUpPlan): number
+	return math.clamp(plan.Elapsed / math.max(self.Config.GetUpTime, 1e-3), 0, 1)
+end
+
+-- Every peer: bend the limbs through the get-up.
+local function poseGettingUp(self: Controller, plan: GetUpPlan)
+	local keys = if plan.FaceDown then GET_UP.FaceDown else GET_UP.FaceUp
+	local u = getUpProgress(self, plan)
+	local joints = self.Rig.Joints
+	local hip, knee = rad(keyed(keys.Hip, u)), rad(keyed(keys.Knee, u))
+	local shoulder, elbow = rad(keyed(keys.Shoulder, u)), rad(keyed(keys.Elbow, u))
+	-- One leg leads so the rise reads as a lunge rather than a jump.
+	local lead = math.sin(math.clamp((u - 0.45) / 0.4, 0, 1) * math.pi) * rad(35)
+	multiplyTransform(joints.LeftHip, CFrame.Angles(hip + lead, 0, 0))
+	multiplyTransform(joints.RightHip, CFrame.Angles(hip - lead, 0, 0))
+	multiplyTransform(joints.LeftKnee, CFrame.Angles(knee, 0, 0))
+	multiplyTransform(joints.RightKnee, CFrame.Angles(knee * (if u > 0.45 then 0.6 else 1), 0, 0))
+	multiplyTransform(joints.LeftShoulder, CFrame.Angles(shoulder, 0, 0))
+	multiplyTransform(joints.RightShoulder, CFrame.Angles(shoulder, 0, 0))
+	multiplyTransform(joints.LeftElbow, CFrame.Angles(elbow, 0, 0))
+	multiplyTransform(joints.RightElbow, CFrame.Angles(elbow, 0, 0))
+	multiplyTransform(joints.Waist, CFrame.Angles(-rad(keyed(keys.Waist, u)), 0, 0))
+end
+
+-- Driver only: carry the body from the floor to standing. Returns true once standing.
+local function moveGettingUp(self: Controller, plan: GetUpPlan): boolean
+	local keys = if plan.FaceDown then GET_UP.FaceDown else GET_UP.FaceUp
+	local u = getUpProgress(self, plan)
+	local pitch = rad(keyed(keys.Pitch, u))
+	-- Height keys are fractions of the standing height at the end, studs before.
+	local height = if u >= 1 then plan.Stand else lerp(keyed(keys.Height, u), plan.Stand, math.clamp((u - 0.65) / 0.35, 0, 1))
+	local rig = self.Rig
+	rig.RootPart.CFrame = CFrame.new(plan.Hips + Vector3.new(0, height, 0)) * plan.Yaw * CFrame.Angles(-pitch, 0, 0)
+	rig.RootPart.AssemblyLinearVelocity = Vector3.zero
+	rig.RootPart.AssemblyAngularVelocity = Vector3.zero
+	return u >= 1
 end
 
 --------------------------------------------------------------------------------------------------
@@ -435,6 +522,18 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		end)
 	end
 
+	self.GetUp = nil
+	if state == STATE.Recovering and previous == STATE.Ragdoll and (self.IsDriver or not isServer) then
+		local plan = planGetUp(self)
+		self.GetUp = plan
+		stateTrove:Connect(RunService.PreSimulation, function(dt)
+			plan.Elapsed += dt
+			if getUpProgress(self, plan) < 1 then
+				poseGettingUp(self, plan)
+			end
+		end)
+	end
+
 	if not self.IsDriver then
 		if self.Balance then
 			local balance = self.Balance
@@ -475,7 +574,15 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, (self.Saved :: any).FallingDown)
 		humanoid:Move(Vector3.zero, false)
 		if previous == STATE.Ragdoll then
-			standUp(self)
+			local plan = self.GetUp :: GetUpPlan
+			humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+			local done = false
+			stateTrove:Connect(RunService.Heartbeat, function()
+				if not done and moveGettingUp(self, plan) then
+					done = true
+					humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+				end
+			end)
 		end
 	else
 		humanoid:Move(Vector3.zero, false)

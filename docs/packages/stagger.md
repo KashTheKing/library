@@ -89,6 +89,8 @@ require(ReplicatedStorage.Packages.Stagger)
 
 **Momentum and re-hits.** Below half balance the lurch stops slowing down (`MomentumHold`), so a character that far gone keeps going until they fall or step back above it. A side-on hit turns the body (`TurnAmount`) so the stumble goes front or back first, and the feet step whichever way the body is going. Hit again mid-stagger and it only gets worse: the lower balance is kept, `ReHitBalanceLoss` comes off on top, and the two lurches add up.
 
+**Getting up.** After a ragdoll the character gets up over `GetUpTime` instead of snapping upright: face down they push up on their arms and pull their knees under, face up they sit up and tuck their feet, then they rise out of a crouch. Every client draws the limbs; the owner moves the body.
+
 **Determinism.** Everything random is seeded per stagger, so the server and the client agree without talking.
 
 **Lifecycle.** Controllers are bound to characters with [Binder](./binder.md). A dead character is unbound without restoring its joints, so the limp rig becomes the corpse and Roblox's own death handling takes over.

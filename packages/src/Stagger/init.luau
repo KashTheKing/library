@@ -331,7 +331,9 @@ function setServerState(character: Model, state: number, payload: Controller.Pay
 			end
 		elseif state == Controller.STATE.Recovering then
 			Rig.apply(rig, "Kinematic")
-			startTimer(character, cfg.GetUpDuration, function()
+			-- From the floor the get-up animation plays first.
+			local getUp = if previous == Controller.STATE.Ragdoll then cfg.GetUpTime else 0
+			startTimer(character, getUp + cfg.GetUpDuration, function()
 				setServerState(character, Controller.STATE.Idle)
 			end)
 		end

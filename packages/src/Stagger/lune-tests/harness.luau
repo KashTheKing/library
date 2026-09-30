@@ -450,11 +450,16 @@ scenario("Player character: heavy hit falls, ragdolls, auto gets up", function()
 	-- Heavy preset: RagdollDuration 4.5
 	local t2 = run(10, function() return Server.GetState(model) == S.Recovering end)
 	check(math.abs(t2 + 0.2 - 4.5) < 0.1, string.format("stood up after RagdollDuration (%.2fs + 0.2s)", t2))
-	check(hs.changes[#hs.changes] == roblox.Enum.HumanoidStateType.GettingUp, "GettingUp state on stand up")
 	check(allKinematic(model), "kinematic again")
+	-- The get-up animation plays first: still low and in Physics partway through.
+	run(0.4)
+	check(hs.changes[#hs.changes] == roblox.Enum.HumanoidStateType.Physics, "Physics while getting up")
+	check(parts.HumanoidRootPart.CFrame.UpVector.Y < 0.95, "not snapped upright")
+	run(1.0)
+	check(hs.changes[#hs.changes] == roblox.Enum.HumanoidStateType.GettingUp, "GettingUp once the animation ends")
 	check(parts.HumanoidRootPart.CFrame.UpVector.Y > 0.99, "root upright")
 	local t3 = run(5, function() return Server.GetState(model) == S.Idle end)
-	check(math.abs(t3 - 0.8) < 0.1, string.format("idle after GetUpDuration (%.2fs)", t3))
+	check(math.abs(t3 + 1.4 - 2.1) < 0.1, string.format("idle after GetUpTime + GetUpDuration (%.2fs + 1.4s)", t3))
 	check(recoveredSignal == 1, "Recovered fired once")
 	check(hum.WalkSpeed == 16 and hum:GetStateEnabled(roblox.Enum.HumanoidStateType.GettingUp) == true, "humanoid restored")
 	c1:Disconnect(); c2:Disconnect()
@@ -497,7 +502,7 @@ scenario("Direct Ragdoll with RagdollDuration 0 waits for Recover; Stop cancels"
 	check(Server.Begin(model, roblox.Vector3.xAxis) == false, "Begin refused while ragdolled")
 	Server.Recover(model)
 	check(Server.GetState(model) == S.Recovering, "recovering")
-	run(2)
+	run(2.3) -- get-up animation + GetUpDuration
 	check(Server.GetState(model) == S.Idle, "idle")
 
 	check(Server.Begin(model, roblox.Vector3.xAxis, { Preset = "Drunk", Seed = 5 }), "begin drunk")
