@@ -204,8 +204,15 @@ local function requireFor(side)
 		-- these two reads are routed to harness hooks. Nothing else in the sources is touched.
 		src = src:gsub("Players%.LocalPlayer", "__H.localPlayer()"):gsub("humanoid%.FloorMaterial", "__H.floor(humanoid)")
 		if path:find("/Stagger/") then src = src:gsub("torso%.Position", "torso.CFrame.Position") end -- BasePart.Position has no Lune default
+		-- Transform is local to each peer in Roblox (it never replicates), but the peers here share
+		-- instances, so keep one Transform per peer.
+		if path:find("/Stagger/") then
+			src = src:gsub("joint%.Transform = ([^\n]+)", "__H.setTransform(joint, %1)"):gsub("joint%.Transform", "__H.transform(joint)")
+		end
 		local env = setmetatable({
-			__H = { localPlayer = function() return cur().Players.LocalPlayer end, floor = function(h) return store(h).floor end },
+			__H = { localPlayer = function() return cur().Players.LocalPlayer end, floor = function(h) return store(h).floor end,
+				transform = function(j) return store(j)["transform_" .. CURRENT] or roblox.CFrame.identity end,
+				setTransform = function(j, v) store(j)["transform_" .. CURRENT] = v end },
 			script = ms, game = game, workspace = workspaceFolder,
 			Enum = roblox.Enum, Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Random = RandomShim,
 			task = taskShim, require = nil, _G_BRIDGE = BRIDGE,
@@ -293,6 +300,7 @@ local passed, failed = 0, 0
 local function check(cond, msg)
 	if cond then passed += 1 else failed += 1; print("  FAIL: " .. msg) end
 end
+local function peerTransform(j, side) return store(j)["transform_" .. side] or roblox.CFrame.identity end
 local function jointsOf(model)
 	local t = {}
 	for _, d in model:GetDescendants() do if d:IsA("AnimationConstraint") then t[d.Name] = d end end
@@ -386,7 +394,7 @@ scenario("Player character: stagger, client drives, recovers, everything restore
 	for _, m in hs.moves do if m.Magnitude > 0 then moved = true end end
 	check(moved, "moved forward in steps")
 	check(hum.WalkSpeed ~= 16, "WalkSpeed changed while staggering")
-	check(joints.Root.Transform ~= roblox.CFrame.identity or joints.Waist.Transform ~= roblox.CFrame.identity, "procedural pose applied")
+	check(peerTransform(joints.Root, "client") ~= roblox.CFrame.identity or peerTransform(joints.Waist, "client") ~= roblox.CFrame.identity, "procedural pose applied")
 	check(Server.GetState(model) == S.Staggering, "still staggering after 0.5s")
 
 	local t = run(10, function() return Server.GetState(model) ~= S.Staggering end)
@@ -461,10 +469,11 @@ scenario("NPC: server drives itself", function()
 	check(store(model.UpperTorso).owner == "server" and store(model.LeftFoot).owner == "server", "server owns the NPC's physics")
 	local cc = Client.GetController(model)
 	check(cc and cc.IsDriver == false, "client only observes NPC")
+	check(cc.Balance ~= nil, "client runs its own copy of the NPC's balance to draw the pose")
 	run(0.3)
 	check(#store(hum).moves > 0, "server moved NPC")
 	-- Nothing animates this rig, so the pose must not compound frame after frame.
-	local _, spin = jointsOf(model).Waist.Transform:ToAxisAngle()
+	local _, spin = peerTransform(jointsOf(model).Waist, "server"):ToAxisAngle()
 	check(spin < 1, string.format("NPC pose layered once, not compounded (waist %.2f rad)", spin))
 	local t = run(10, function() return Server.GetState(model) ~= S.Staggering end)
 	print(string.format("  decided after %.2fs: %s", t, Server.StateNames[Server.GetState(model)]))
@@ -472,7 +481,7 @@ scenario("NPC: server drives itself", function()
 	for _, e in BRIDGE.log do if e.name == "Stagger.Report" and e.args[1] == model then reports += 1 end end
 	check(reports == 0, "no client report for NPC")
 	run(10, function() return Server.GetState(model) == S.Idle end)
-	for _, j in jointsOf(model) do check(j.Transform.Position.Magnitude < 1e-3 and j.Transform.XVector.X > 0.9999 and j.Transform.YVector.Y > 0.9999, "NPC " .. j.Name .. " pose cleared") end
+	for _, j in jointsOf(model) do local tf = peerTransform(j, "server") check(tf.Position.Magnitude < 1e-3 and tf.XVector.X > 0.9999 and tf.YVector.Y > 0.9999, "NPC " .. j.Name .. " pose cleared") end
 	check(Server.GetState(model) == S.Idle and allKinematic(model), "npc idle and restored (state=" .. Server.StateNames[Server.GetState(model)] .. " kinematic=" .. tostring(allKinematic(model)) .. ")")
 	model:Destroy()
 end)
@@ -507,8 +516,48 @@ scenario("Re-hit while staggering restarts the lurch", function()
 	check(Server.Begin(model, -roblox.Vector3.zAxis, { Preset = "Drunk", Seed = 2 }), "second Begin ok")
 	local b = Client.GetController(model).Balance
 	check(b.Time < before, "balance model restarted")
-	check(b.Direction.Z < -0.9, "new direction")
+	check(b.Direction.Z < -0.5, "new direction dominates")
+	local fresh = Client.Presets.Drunk.StartBalance
+	check(b.Balance <= fresh - Client.Presets.Drunk.ReHitBalanceLoss + 1e-6, string.format("re-hit keeps you lower (%.2f vs fresh %.2f)", b.Balance, fresh))
 	Server.Stop(model)
+	model:Destroy(); localPlayer.Character = nil
+end)
+
+scenario("Low balance holds the lurch speed; MomentumHold 0 keeps the old slowdown", function()
+	Server.RegisterPreset("NoHold", Server.Presets.Default, { MomentumHold = 0 })
+	Client.RegisterPreset("NoHold", Client.Presets.Default, { MomentumHold = 0 })
+	local model = playerCharacter("Kash")
+	local function speedAfter(preset)
+		Server.Begin(model, roblox.Vector3.xAxis, { Preset = preset, Seed = 3 })
+		local b = Client.GetController(model).Balance
+		b.Balance, b.Stepping, b.NextStepAt = 0.05, false, math.huge -- far gone, no step to save them
+		local start = b.Speed > 0 and b.Speed or b.Momentum.Magnitude
+		b:Step(0.5)
+		return start, b.Speed
+	end
+	local start, held = speedAfter("Default")
+	check(held > start * 0.95, string.format("speed held at low balance (%.1f -> %.1f)", start, held))
+	local start2, slowed = speedAfter("NoHold")
+	check(slowed < start2 - 0.3, string.format("MomentumHold 0 still slows (%.1f -> %.1f)", start2, slowed))
+	Server.Stop(model)
+	model:Destroy(); localPlayer.Character = nil
+end)
+
+scenario("Side hits turn the body; straight hits do not", function()
+	local model = playerCharacter("Kash")
+	local root = model.HumanoidRootPart
+	local function yawAfter(dir)
+		root.CFrame = roblox.CFrame.new(root.CFrame.Position)
+		Server.Begin(model, dir, { Seed = 5 })
+		run(0.6)
+		local look = root.CFrame.LookVector
+		Server.Stop(model)
+		run(0.1)
+		return math.deg(math.acos(math.clamp(-look.Z, -1, 1)))
+	end
+	check(yawAfter(roblox.Vector3.xAxis) > 45, "hit from the side turns the body")
+	check(yawAfter(roblox.Vector3.zAxis) < 5, "hit from the front does not turn")
+	check(yawAfter(-roblox.Vector3.zAxis) < 5, "hit from behind does not turn")
 	model:Destroy(); localPlayer.Character = nil
 end)
 

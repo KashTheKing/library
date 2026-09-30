@@ -50,6 +50,7 @@ export type Controller = {
 	Intensity: number,
 	Decided: boolean,
 	AirTime: number,
+	TurnLeft: number,
 	Saved: { WalkSpeed: number, Jumping: boolean, GettingUp: boolean, FallingDown: boolean }?,
 	OnOutcome: ((controller: Controller, outcome: Balance.Outcome) -> ())?,
 
@@ -95,6 +96,7 @@ function Controller.new(character: Model, trove: Trove, rig: Rig.Rig): Controlle
 		Intensity = 1,
 		Decided = false,
 		AirTime = 0,
+		TurnLeft = 0,
 		Saved = nil,
 		OnOutcome = nil,
 	} :: any, Controller) :: any
@@ -185,6 +187,19 @@ end
 -- Driver: staggering
 --------------------------------------------------------------------------------------------------
 
+-- How far to turn so the character stumbles front or back first instead of crab-walking
+-- sideways: pushed from behind they turn to face the lurch, otherwise they turn their back to it.
+-- Straight front or back hits need no turn. Positive is a turn to the left.
+local function turnFor(dirLocal: Vector3, maxTurn: number): number
+	local turn
+	if dirLocal.Z < -0.3 then
+		turn = math.atan2(-dirLocal.X, -dirLocal.Z)
+	else
+		turn = math.atan2(dirLocal.X, dirLocal.Z)
+	end
+	return math.clamp(turn, -maxTurn, maxTurn)
+end
+
 local function poseStaggering(self: Controller)
 	local balance = self.Balance
 	if not balance then
@@ -222,7 +237,7 @@ local function poseStaggering(self: Controller)
 	multiplyTransform(joints.RightElbow, CFrame.Angles(0.4 * raise, 0, 0))
 	multiplyTransform(joints.LeftElbow, CFrame.Angles(0.4 * raise, 0, 0))
 
-	-- Legs: the stepping leg swings forward at the hip and bends at the knee; the other
+	-- Legs: the stepping leg swings towards the lurch at the hip and bends at the knee; the other
 	-- one is the planted stance leg with a little bend so the pose reads as crouched.
 	local phase = if balance.Stepping then math.sin(balance.StepPhase * math.pi) else 0
 	local swing = cfg.StepSwing * phase * (if balance.StepIsStutter then 0.55 else 1)
@@ -233,7 +248,8 @@ local function poseStaggering(self: Controller)
 	else
 		stepping, planted = "Right", "Left"
 	end
-	multiplyTransform(joints[stepping .. "Hip"], CFrame.Angles(swing, 0, 0))
+	-- The foot reaches the way the body is going: forward, back, or across.
+	multiplyTransform(joints[stepping .. "Hip"], leanTowards(dirLocal, -swing))
 	multiplyTransform(joints[stepping .. "Knee"], CFrame.Angles(-bend, 0, 0))
 	multiplyTransform(joints[planted .. "Hip"], CFrame.Angles(0.12 * raise, 0, 0))
 	multiplyTransform(joints[planted .. "Knee"], CFrame.Angles(-0.25 * raise, 0, 0))
@@ -248,6 +264,15 @@ local function updateStaggering(self: Controller, dt: number)
 	local humanoid = self.Humanoid
 
 	local outcome = balance:Step(dt)
+
+	-- Turn with the hit.
+	local turnLeft = self.TurnLeft
+	if math.abs(turnLeft) > 1e-3 then
+		local turn = math.clamp(turnLeft, -cfg.TurnSpeed * dt, cfg.TurnSpeed * dt)
+		local root = self.Rig.RootPart
+		root.CFrame *= CFrame.Angles(0, turn, 0)
+		self.TurnLeft = turnLeft - turn
+	end
 
 	-- Off a ledge: no floor for a while means the feet cannot save this.
 	if humanoid.FloorMaterial == Enum.Material.Air then
@@ -388,14 +413,42 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		self.Config = payload.Config
 	end
 
+	-- Transform never replicates, so every client runs its own copy of the (seeded, so identical)
+	-- balance model and draws the pose itself. Only the driver moves the character and decides.
+	local previousBalance = self.Balance
+	self.Balance = nil
+	if state == STATE.Staggering and (self.IsDriver or not isServer) then
+		local balance = Balance.new(self.Config, self.Direction, self.Intensity, self.Seed)
+		if previousBalance and previous == STATE.Staggering then
+			-- Hit again while still off balance: it only gets worse. Keep the lower balance, lose
+			-- some more, and the old lurch adds to the new shove.
+			balance.Balance = math.max(math.min(balance.Balance, previousBalance.Balance) - self.Config.ReHitBalanceLoss, 0)
+			balance.Momentum += previousBalance.Momentum
+			balance.Speed = balance.Momentum.Magnitude
+			if balance.Speed > 1e-3 then
+				balance.Direction = balance.Momentum.Unit
+			end
+		end
+		self.Balance = balance
+		stateTrove:Connect(RunService.PreSimulation, function()
+			poseStaggering(self)
+		end)
+	end
+
 	if not self.IsDriver then
-		self.Balance = nil
+		if self.Balance then
+			local balance = self.Balance
+			stateTrove:Connect(RunService.Heartbeat, function(dt)
+				balance:Step(dt)
+			end)
+		end
 		return
 	end
 
 	local humanoid = self.Humanoid
 	if state == STATE.Staggering then
-		self.Balance = Balance.new(self.Config, self.Direction, self.Intensity, self.Seed)
+		local balance = self.Balance :: Balance.Balance
+		self.TurnLeft = turnFor(self.Rig.RootPart.CFrame:VectorToObjectSpace(balance.Direction), self.Config.TurnAmount)
 		saveHumanoid(self)
 		setControlsEnabled(self, false)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
@@ -403,11 +456,7 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		stateTrove:Connect(RunService.Heartbeat, function(dt)
 			updateStaggering(self, dt)
 		end)
-		stateTrove:Connect(RunService.PreSimulation, function()
-			poseStaggering(self)
-		end)
 	elseif state == STATE.Ragdoll then
-		self.Balance = nil
 		saveHumanoid(self)
 		setControlsEnabled(self, false)
 		humanoid.WalkSpeed = (self.Saved :: any).WalkSpeed
@@ -420,7 +469,6 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 			updateRagdoll(self)
 		end)
 	elseif state == STATE.Recovering then
-		self.Balance = nil
 		saveHumanoid(self)
 		humanoid.WalkSpeed = (self.Saved :: any).WalkSpeed
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
@@ -430,7 +478,6 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 			standUp(self)
 		end
 	else
-		self.Balance = nil
 		humanoid:Move(Vector3.zero, false)
 		restoreHumanoid(self)
 		setControlsEnabled(self, true)

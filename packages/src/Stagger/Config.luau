@@ -27,6 +27,7 @@
 	.StepDuration number -- How long one leg swing lasts. Default `0.22`.
 	.StepBalanceGain number -- Balance regained by a clean step. Default `0.14`.
 	.StepMomentumKeep number -- Fraction of the lurch that survives a clean step (lower stops sooner). Default `0.7`.
+	.MomentumHold number -- How much a low balance stops the lurch slowing down, from 0 (friction and steps always slow it) to 1 (at zero balance it keeps its full speed until the character falls or steps back above half balance). Default `1`.
 	.StutterChance number -- Chance a step is a half step: shorter, weaker, closer to the next. This is the "stutter". Default `0.45`.
 	.MisstepChance number -- Chance (times how off balance the character is) that a step goes wrong: a sideways kick and a balance loss. Default `0.35`.
 	.RecoverSpeed number -- Once the lurch is slower than this many studs per second... Default `2.5`.
@@ -40,6 +41,9 @@
 	.StepSwing number -- Radians a stepping leg swings forward at the hip. Default `0.7`.
 	.KneeBend number -- Radians the knee bends during a step. Default `0.9`.
 	.HeadCounter number -- How much the head counter-rotates to stay level (0 none, 1 fully). Default `0.7`.
+	.TurnAmount number -- Most radians the body turns with a side-on hit, so the stumble goes front or back first. `0` never turns. Default `1.2`.
+	.TurnSpeed number -- Radians per second of that turn. Default `5`.
+	.ReHitBalanceLoss number -- Extra balance lost when hit again mid-stagger, on top of keeping the lower balance and adding the lurches together. Default `0.2`.
 	.MuscleStrength number -- `AnimationConstraint.AngularStrength` for the upper body while staggering. Below 1 the arms and torso lag the animation and swing with the body: this is the Euphoria look. Default `0.3`.
 	.MuscleDamping number -- `AnimationConstraint.AngularDamping` for the upper body while staggering. Default `0.9`.
 	.LimpStrength number -- `AngularStrength` for every joint while ragdolled. 0 is a rag; a little keeps some tone. Default `0.04`.
@@ -57,6 +61,7 @@ export type Config = {
 	StepDuration: number,
 	StepBalanceGain: number,
 	StepMomentumKeep: number,
+	MomentumHold: number,
 	StutterChance: number,
 	MisstepChance: number,
 	RecoverSpeed: number,
@@ -71,6 +76,9 @@ export type Config = {
 	StepSwing: number,
 	KneeBend: number,
 	HeadCounter: number,
+	TurnAmount: number,
+	TurnSpeed: number,
+	ReHitBalanceLoss: number,
 
 	MuscleStrength: number,
 	MuscleDamping: number,
@@ -93,6 +101,7 @@ local Default: Config = table.freeze({
 	StepDuration = 0.22,
 	StepBalanceGain = 0.14,
 	StepMomentumKeep = 0.7,
+	MomentumHold = 1,
 	StutterChance = 0.45,
 	MisstepChance = 0.35,
 	RecoverSpeed = 2.5,
@@ -107,6 +116,9 @@ local Default: Config = table.freeze({
 	StepSwing = 0.7,
 	KneeBend = 0.9,
 	HeadCounter = 0.7,
+	TurnAmount = 1.2,
+	TurnSpeed = 5,
+	ReHitBalanceLoss = 0.2,
 
 	MuscleStrength = 0.3,
 	MuscleDamping = 0.9,

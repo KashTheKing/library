@@ -130,6 +130,14 @@ function Balance.Disturb(self: Balance, amount: number, direction: Vector3?)
 	self.Balance = math.clamp(self.Balance - amount, 0, 1)
 end
 
+-- How much the character can still slow down, from 1 (normal) to 0 (none). Below half balance
+-- the lurch stops bleeding off, so a character that far gone keeps going until they either fall
+-- or step their way back above it.
+local function brakeFactor(self: Balance): number
+	local low = math.clamp(1 - self.Balance / 0.5, 0, 1)
+	return 1 - self.Config.MomentumHold * low
+end
+
 local function beginStep(self: Balance)
 	local cfg = self.Config
 	local rng = self.Random
@@ -161,6 +169,8 @@ local function beginStep(self: Balance)
 		-- Steps get less effective the faster you are still going: feet can't keep up.
 		local overspeed = math.clamp(self.Speed / cfg.LurchSpeed - 1, 0, 1)
 		keep = keep + (1 - keep) * overspeed * 0.5
+		-- Far off balance the feet only chase the body: the step keeps the momentum.
+		keep = keep + (1 - keep) * (1 - brakeFactor(self))
 		gain *= (1 - overspeed * 0.5) * rng:NextNumber(0.6, 1.1)
 		self.Momentum *= keep
 		self.Balance = math.clamp(self.Balance + gain, 0, 1)
@@ -187,7 +197,7 @@ function Balance.Step(self: Balance, dt: number): Outcome
 
 	-- Momentum bleeds on its own (friction), faster once slow.
 	local speed = self.Momentum.Magnitude
-	local friction = 0.8 + 3 / math.max(speed, 1)
+	local friction = (0.8 + 3 / math.max(speed, 1)) * brakeFactor(self)
 	speed = math.max(speed - friction * dt, 0)
 	if self.Momentum.Magnitude > 1e-4 then
 		self.Direction = self.Momentum.Unit
