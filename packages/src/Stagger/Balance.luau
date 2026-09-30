@@ -189,15 +189,20 @@ end
 	@method Step
 	@within Balance
 	@param dt number
+	@param catch number? -- 0 to 1: how much the player is running the stumble out (walk input lined up with the lurch). Earns balance back and bleeds speed.
 	@return Outcome -- `"Staggering"` while undecided, then `"Recovered"` or `"Fell"` once and for all.
 ]=]
-function Balance.Step(self: Balance, dt: number): Outcome
+function Balance.Step(self: Balance, dt: number, catch: number?): Outcome
 	local cfg = self.Config
 	self.Time += dt
 
 	-- Momentum bleeds on its own (friction), faster once slow.
 	local speed = self.Momentum.Magnitude
 	local friction = (0.8 + 3 / math.max(speed, 1)) * brakeFactor(self)
+	-- Running the stumble out: the feet catch up with the body, so it slows and steadies.
+	catch = math.clamp(catch or 0, 0, 1)
+	friction += cfg.CatchBrake * catch
+	self.Balance = math.clamp(self.Balance + cfg.CatchGain * catch * dt, 0, 1)
 	speed = math.max(speed - friction * dt, 0)
 	if self.Momentum.Magnitude > 1e-4 then
 		self.Direction = self.Momentum.Unit

@@ -630,6 +630,41 @@ scenario("Walk input steers the lurch", function()
 	model:Destroy(); localPlayer.Character = nil
 end)
 
+scenario("Running the stumble out catches your balance", function()
+	local model, hum = playerCharacter("Kash")
+	local function balanceAfter(input)
+		Server.Begin(model, roblox.Vector3.xAxis, { Seed = 21, Preset = "Heavy" })
+		store(hum).input = input
+		run(1)
+		local cc = Client.GetController(model)
+		local b = if cc.Balance then cc.Balance.Balance else -1
+		local state = Server.GetState(model)
+		store(hum).input = nil
+		Server.Stop(model)
+		run(0.1)
+		return b, state
+	end
+	local alone = balanceAfter(nil)
+	local caught = balanceAfter(roblox.Vector3.xAxis)
+	check(caught > alone + 0.2, string.format("walking with the lurch steadies you (%.2f vs %.2f)", caught, alone))
+	local _, state = balanceAfter(-roblox.Vector3.xAxis)
+	check(state ~= nil, "walking against it gives nothing back (no crash)")
+	model:Destroy(); localPlayer.Character = nil
+end)
+
+scenario("Staggered in mid-air: ragdoll instead", function()
+	local model = playerCharacter("Kash")
+	AIRBORNE = true
+	local ok = Server.Begin(model, roblox.Vector3.xAxis, { Seed = 4 })
+	AIRBORNE = false
+	check(ok and Server.GetState(model) == S.Ragdoll, "no ground under them: ragdolled")
+	Server.Stop(model)
+	run(0.1)
+	check(Server.Begin(model, roblox.Vector3.xAxis, { Seed = 4 }) and Server.GetState(model) == S.Staggering, "on the ground: staggers as usual")
+	Server.Stop(model)
+	model:Destroy(); localPlayer.Character = nil
+end)
+
 scenario("Death during stagger releases without restoring joints", function()
 	local model, hum = playerCharacter("Kash")
 	Server.Begin(model, roblox.Vector3.xAxis, { Seed = 9 })

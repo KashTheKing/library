@@ -285,7 +285,15 @@ local function updateStaggering(self: Controller, dt: number)
 			balance.Momentum = CFrame.fromAxisAngle(Vector3.yAxis, turn):VectorToWorldSpace(balance.Momentum)
 		end
 	end
-	local outcome = balance:Step(dt)
+	-- Walking with the stumble (input lined up with the lurch) is catching yourself.
+	local catch = 0
+	if input and cfg.Steering > 0 then
+		local flat = Vector3.new(input.X, 0, input.Z)
+		if flat.Magnitude > 0.1 then
+			catch = math.max(flat.Unit:Dot(balance.Direction), 0) * math.min(flat.Magnitude, 1)
+		end
+	end
+	local outcome = balance:Step(dt, catch)
 
 	-- Face the lurch: a spin constraint keeps turning the body towards where it is being thrown,
 	-- following the direction as missteps and re-hits change it.

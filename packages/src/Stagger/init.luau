@@ -192,6 +192,15 @@ local function getPreset(name: string): Config.Config
 	return preset
 end
 
+-- Whether there is ground just under the character (a little more than their standing height).
+local function onGround(character: Model, rootPart: BasePart, humanoid: Humanoid): boolean
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { character }
+	local reach = humanoid.HipHeight + rootPart.Size.Y / 2 + 1.5
+	return workspace:Raycast(rootPart.CFrame.Position, Vector3.new(0, -reach, 0), params) ~= nil
+end
+
 local function setAttribute(character: Model, state: number)
 	if isServer then
 		character:SetAttribute(Stagger.ATTRIBUTE, if state == Controller.STATE.Idle then nil else state)
@@ -412,7 +421,11 @@ function Stagger.Begin(character: Model, direction: Vector3?, options: BeginOpti
 	if state == Controller.STATE.Ragdoll then
 		return false
 	end
-	local rootPart = humanoid.RootPart
+	local rootPart = humanoid.RootPart or character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	-- Nothing to stagger on in mid-air: go limp instead.
+	if rootPart and getPreset(options and options.Preset or "Default").RagdollInAir and not onGround(character, rootPart, humanoid) then
+		return Stagger.Ragdoll(character, options)
+	end
 	local payload = makePayload(direction or (if rootPart then rootPart.CFrame.LookVector else nil), options)
 	setServerState(character, Controller.STATE.Staggering, payload)
 	return Stagger.GetState(character) == Controller.STATE.Staggering

@@ -42,6 +42,8 @@
 	.KneeBend number -- Radians the knee bends during a step. Default `0.9`.
 	.HeadCounter number -- How much the head counter-rotates to stay level (0 none, 1 fully). Default `0.7`.
 	.Steering number -- Radians per second the player's walk input can bend the lurch towards where they are walking. `0` ignores input (and turns the controls off for the stagger). Default `2.5`.
+	.CatchGain number -- Balance per second a player earns back by walking with the stumble (running it out). Default `0.35`.
+	.CatchBrake number -- Extra studs per second per second the lurch slows while they do. Default `4`.
 	.TurnSpeed number -- Radians per second the body turns to face the way it is being thrown. `0` (the default) keeps them facing where they were when hit: shoved from the front they stagger backwards. Either way the heading is held so the Humanoid can't swing them round.
 	.ReHitBalanceLoss number -- Extra balance lost when hit again mid-stagger, on top of keeping the lower balance and adding the lurches together. Default `0.2`.
 	.MuscleStrength number -- `AnimationConstraint.AngularStrength` for the upper body while staggering. Below 1 the arms and torso lag the animation and swing with the body: this is the Euphoria look. Default `0.3`.
@@ -51,6 +53,7 @@
 	.RagdollDuration number -- Seconds to stay ragdolled before standing up on their own. `0` means stay down until [Stagger.Recover] is called. Default `3`.
 	.GetUpTime number -- Seconds the get-up animation takes after a ragdoll: arms push, knees come under, then the rise. Default `1.3`.
 	.GetUpDuration number -- Seconds a character who recovered on their feet (never fell) stays in `Recovering` before the stagger is over. After a ragdoll the stagger ends with the get-up instead. Default `0.25`.
+	.RagdollInAir boolean -- A stagger that starts with no ground under the character ragdolls them instead. Default `true`.
 	.DisableControls boolean -- On a player's own client, disable the PlayerModule controls for the duration. Default `true`.
 ]=]
 export type Config = {
@@ -78,6 +81,8 @@ export type Config = {
 	KneeBend: number,
 	HeadCounter: number,
 	Steering: number,
+	CatchGain: number,
+	CatchBrake: number,
 	TurnSpeed: number,
 	ReHitBalanceLoss: number,
 
@@ -89,6 +94,7 @@ export type Config = {
 	RagdollDuration: number,
 	GetUpTime: number,
 	GetUpDuration: number,
+	RagdollInAir: boolean,
 	DisableControls: boolean,
 }
 
@@ -119,6 +125,8 @@ local Default: Config = table.freeze({
 	KneeBend = 0.9,
 	HeadCounter = 0.7,
 	Steering = 2.5,
+	CatchGain = 0.35,
+	CatchBrake = 4,
 	TurnSpeed = 0,
 	ReHitBalanceLoss = 0.2,
 
@@ -130,6 +138,7 @@ local Default: Config = table.freeze({
 	RagdollDuration = 3,
 	GetUpTime = 1.3,
 	GetUpDuration = 0.25,
+	RagdollInAir = true,
 	DisableControls = true,
 })
 Config.Default = Default
