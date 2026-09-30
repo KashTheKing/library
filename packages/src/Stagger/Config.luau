@@ -41,8 +41,7 @@
 	.StepSwing number -- Radians a stepping leg swings forward at the hip. Default `0.7`.
 	.KneeBend number -- Radians the knee bends during a step. Default `0.9`.
 	.HeadCounter number -- How much the head counter-rotates to stay level (0 none, 1 fully). Default `0.7`.
-	.TurnAmount number -- Most radians the body turns with a side-on hit, so the stumble goes front or back first. `0` never turns. Default `1.2`.
-	.TurnSpeed number -- Radians per second of that turn. Default `5`.
+	.TurnSpeed number -- Radians per second the body turns to face the way it is being thrown, so the stumble always goes forward into the lurch. `0` never turns. Default `25`.
 	.ReHitBalanceLoss number -- Extra balance lost when hit again mid-stagger, on top of keeping the lower balance and adding the lurches together. Default `0.2`.
 	.MuscleStrength number -- `AnimationConstraint.AngularStrength` for the upper body while staggering. Below 1 the arms and torso lag the animation and swing with the body: this is the Euphoria look. Default `0.3`.
 	.MuscleDamping number -- `AnimationConstraint.AngularDamping` for the upper body while staggering. Default `0.9`.
@@ -77,7 +76,6 @@ export type Config = {
 	StepSwing: number,
 	KneeBend: number,
 	HeadCounter: number,
-	TurnAmount: number,
 	TurnSpeed: number,
 	ReHitBalanceLoss: number,
 
@@ -118,8 +116,7 @@ local Default: Config = table.freeze({
 	StepSwing = 0.7,
 	KneeBend = 0.9,
 	HeadCounter = 0.7,
-	TurnAmount = 1.2,
-	TurnSpeed = 5,
+	TurnSpeed = 25,
 	ReHitBalanceLoss = 0.2,
 
 	MuscleStrength = 0.3,

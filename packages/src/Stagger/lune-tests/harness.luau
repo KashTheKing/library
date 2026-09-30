@@ -568,12 +568,12 @@ scenario("Low balance holds the lurch speed; MomentumHold 0 keeps the old slowdo
 	model:Destroy(); localPlayer.Character = nil
 end)
 
-scenario("Side hits turn the body; straight hits do not", function()
+scenario("The body turns to face the way it is thrown", function()
 	local model = playerCharacter("Kash")
 	local root = model.HumanoidRootPart
 	-- No physics engine here, so check the spin constraint the driver sets up instead.
 	local function spinAfter(dir)
-		root.CFrame = roblox.CFrame.new(root.CFrame.Position)
+		root.CFrame = roblox.CFrame.new(root.CFrame.Position) -- facing -Z
 		Server.Begin(model, dir, { Seed = 5 })
 		run(0.1)
 		local spin = root:FindFirstChildOfClass("AngularVelocity")
@@ -582,9 +582,9 @@ scenario("Side hits turn the body; straight hits do not", function()
 		run(0.1)
 		return rate
 	end
-	check(math.abs(spinAfter(roblox.Vector3.xAxis)) > 1, "hit from the side spins the body")
-	check(spinAfter(roblox.Vector3.zAxis) == 0, "hit from the front does not turn")
-	check(spinAfter(-roblox.Vector3.zAxis) == 0, "hit from behind does not turn")
+	check(math.abs(spinAfter(roblox.Vector3.xAxis)) > 1, "thrown sideways: turns")
+	check(math.abs(spinAfter(roblox.Vector3.zAxis)) > 1, "thrown backwards (hit from the front): turns round")
+	check(spinAfter(-roblox.Vector3.zAxis) == 0, "thrown forwards (hit from behind): already facing it")
 	check(root:FindFirstChildOfClass("AngularVelocity") == nil, "spin constraint cleaned up")
 	model:Destroy(); localPlayer.Character = nil
 end)

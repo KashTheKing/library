@@ -50,7 +50,6 @@ export type Controller = {
 	Intensity: number,
 	Decided: boolean,
 	AirTime: number,
-	TurnLeft: number,
 	GetUp: any,
 	PausedAnimate: Instance?,
 	MoveIntent: Vector3,
@@ -100,7 +99,6 @@ function Controller.new(character: Model, trove: Trove, rig: Rig.Rig): Controlle
 		Intensity = 1,
 		Decided = false,
 		AirTime = 0,
-		TurnLeft = 0,
 		Saved = nil,
 		OnOutcome = nil,
 	} :: any, Controller) :: any
@@ -199,17 +197,13 @@ end
 -- Driver: staggering
 --------------------------------------------------------------------------------------------------
 
--- How far to turn so the character stumbles front or back first instead of crab-walking
--- sideways: pushed from behind they turn to face the lurch, otherwise they turn their back to it.
--- Straight front or back hits need no turn. Positive is a turn to the left.
-local function turnFor(dirLocal: Vector3, maxTurn: number): number
-	local turn
-	if dirLocal.Z < -0.3 then
-		turn = math.atan2(-dirLocal.X, -dirLocal.Z)
-	else
-		turn = math.atan2(dirLocal.X, dirLocal.Z)
+-- How far the body is turned away from the lurch: the angle to turn (positive is to the left) so
+-- the character faces the way they are being thrown and stumbles forward into it.
+local function headingError(dirLocal: Vector3): number
+	if dirLocal.X * dirLocal.X + dirLocal.Z * dirLocal.Z < 1e-6 then
+		return 0
 	end
-	return math.clamp(turn, -maxTurn, maxTurn)
+	return math.atan2(-dirLocal.X, -dirLocal.Z)
 end
 
 local function poseStaggering(self: Controller)
@@ -280,17 +274,18 @@ local function updateStaggering(self: Controller, dt: number)
 
 	local outcome = balance:Step(dt)
 
-	-- Turn with the hit: a spin constraint on the root, running until the turn is used up.
+	-- Face the lurch: a spin constraint keeps turning the body towards where it is being thrown,
+	-- following the direction as missteps and re-hits change it.
 	local spin = self.Spin
 	if spin then
-		local turnLeft = self.TurnLeft
-		if math.abs(turnLeft) > 1e-3 then
-			local rate = math.sign(turnLeft) * math.min(cfg.TurnSpeed, math.abs(turnLeft) / math.max(dt, 1e-3))
+		local root = self.Rig.RootPart
+		local err = headingError(root.CFrame:VectorToObjectSpace(balance.Direction))
+		if math.abs(err) > 0.02 then
+			local rate = math.clamp(err / math.max(dt, 1e-3), -cfg.TurnSpeed, cfg.TurnSpeed)
 			spin.AngularVelocity = Vector3.new(0, rate, 0)
 			spin.Enabled = true
-			self.TurnLeft = turnLeft - rate * dt
 		else
-			spin.Enabled = false
+			spin.AngularVelocity = Vector3.zero
 		end
 	end
 
@@ -641,7 +636,6 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 	local humanoid = self.Humanoid
 	if state == STATE.Staggering then
 		local balance = self.Balance :: Balance.Balance
-		self.TurnLeft = turnFor(self.Rig.RootPart.CFrame:VectorToObjectSpace(balance.Direction), self.Config.TurnAmount)
 		local root = self.Rig.RootPart
 		local spinAttachment = stateTrove:Add(Instance.new("Attachment"))
 		spinAttachment.Name = "StaggerTurn"
@@ -656,6 +650,9 @@ function Controller.SetState(self: Controller, state: State, payload: Payload?)
 		saveHumanoid(self)
 		setControlsEnabled(self, false)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+		-- The spin constraint does the turning; don't let the Humanoid swing round towards its
+		-- move direction before the server's AutoRotate change arrives.
+		humanoid.AutoRotate = false
 		-- Shove the body on the frame of the hit; the Humanoid would take a while to get up to
 		-- lurch speed on its own.
 		local velocity = root.AssemblyLinearVelocity
