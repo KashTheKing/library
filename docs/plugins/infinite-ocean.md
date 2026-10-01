@@ -8,7 +8,7 @@ description: Infinite Gerstner-wave ocean for Roblox with buoyancy, swimming and
 
 <div className="library-links">
 
-[Full documentation](https://kashtheking.com/infinite-ocean/) [Get it on the Creator Store](https://create.roblox.com/store/asset/76752250508724/Infinite-Ocean) [Ocean package](../packages/ocean.md) [Ocean module source](https://github.com/KashTheKing/library/tree/main/packages/src/Ocean) [This page's source](https://github.com/KashTheKing/library/tree/main/plugins/infinite-ocean)
+[Full documentation](https://kashtheking.com/infinite-ocean/) [DevForum thread](https://devforum.roblox.com/t/infinite-ocean-v140-an-open-source-endless-scriptable-ocean-module-plus-a-studio-plugin-to-set-it-up/4906646) [Get it on the Creator Store](https://create.roblox.com/store/asset/76752250508724/Infinite-Ocean) [Ocean package](../packages/ocean.md) [Ocean module source](https://github.com/KashTheKing/library/tree/main/packages/src/Ocean) [This page's source](https://github.com/KashTheKing/library/tree/main/plugins/infinite-ocean)
 
 </div>
 
@@ -37,6 +37,10 @@ The plugin is paid and closed-source. The `Ocean` module it installs is MIT lice
 ## Where the docs are
 
 Infinite Ocean has its own site with a no-scripting guide, a tutorial, the plugin guide and the full API reference: **[kashtheking.com/infinite-ocean](https://kashtheking.com/infinite-ocean/)**. This page is only a pointer so the plugin is listed with the rest of the library.
+
+## Enjoying it?
+
+If Infinite Ocean is useful to you, a like on the [DevForum release thread](https://devforum.roblox.com/t/infinite-ocean-v140-an-open-source-endless-scriptable-ocean-module-plus-a-studio-plugin-to-set-it-up/4906646) helps a lot.
 
 ## Help
 
