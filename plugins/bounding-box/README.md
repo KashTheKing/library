@@ -19,3 +19,6 @@ If you'd like to change the default properties of new bounding boxes:
 2. Click the "Match Properties" toolbar button.
 
 Future bounding boxes will now have the same properties (i.e. Anchored, CanCollide, CanTouch, etc.) as the part you selected.
+
+## License
+The plugin is licensed under the [Functional Source License, Version 1.1, ALv2 Future License](LICENSE.md) (FSL-1.1-ALv2). Copyright 2026 KashTheKing. Each version becomes Apache 2.0 two years after it is released.
