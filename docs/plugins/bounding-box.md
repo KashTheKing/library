@@ -32,6 +32,10 @@ To change the default properties of new bounding boxes:
 
 From then on every new bounding box copies that part's properties (Anchored, CanCollide, CanTouch, Transparency, Color and so on).
 
+## License
+
+Bounding Box is licensed under the [Functional Source License, Version 1.1, ALv2 Future License](https://github.com/KashTheKing/library/blob/main/plugins/bounding-box/LICENSE.md) (FSL-1.1-ALv2). You can use, change and share it for anything except a competing product, and each version becomes Apache 2.0 two years after its release.
+
 ## Help
 
 [Discord](https://discord.gg/6HYgCk22eD) · [GitHub issues](https://github.com/KashTheKing/library/issues) · [Help & contact](../support.md)

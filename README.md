@@ -28,4 +28,4 @@ npm run docs:build     # static site in build/docs
 npm run publish:docs   # build and commit into KashTheKing.github.io/library
 ```
 
-Packages and building blocks are MIT licensed (see [LICENSE](LICENSE)).
+Packages and building blocks are MIT licensed (see [LICENSE](LICENSE)). Free plugins are licensed under FSL-1.1-ALv2 (the `LICENSE.md` in each plugin's folder); paid plugins are proprietary.

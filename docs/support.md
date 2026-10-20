@@ -37,7 +37,7 @@ Include these and I can usually fix it the same day:
 ## Licensing
 
 - **Packages and building blocks** are [MIT licensed](https://github.com/KashTheKing/library/blob/main/LICENSE). Use them in anything, commercial or not, keep the copyright notice.
-- **Studio plugins** are distributed on the Creator Store. Free plugins are free to use in any experience; paid ones (Infinite Ocean) show their agreement the first time they open. Forks keep the original author's licence and credit (Packager is forked from likeablesea7's Custom Explorer; Studio Wally from fewkz's plugin).
+- **Studio plugins** are distributed on the Creator Store. My free plugins are licensed under the [Functional Source License, Version 1.1, ALv2 Future License](https://fsl.software/) (FSL-1.1-ALv2): use, change and share them for anything except a competing product, and each version becomes Apache 2.0 two years after its release. The licence is in each plugin's folder. Paid plugins (Infinite Ocean, Flashback) are proprietary and show their agreement the first time they open. Forks (Packager, Studio Wally) keep the original author's licence and credit (Packager is forked from likeablesea7's Custom Explorer; Studio Wally from fewkz's plugin).
 
 ## Contributing
 

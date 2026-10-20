@@ -63,15 +63,15 @@ All of my Roblox Studio plugins and plugin forks. Each installs from the Creator
 
 ## At a glance
 
-| Plugin | What it does | Price | Store |
-| --- | --- | --- | --- |
-| [Packager](./packager.md) | Package and unpack whole systems between experiences | Free | [Get it](https://create.roblox.com/store/asset/85885451493408/Packager) |
-| [Studio Wally](./studio-wally.md) | Install Wally packages from inside Studio, with types | Free | [Get it](https://create.roblox.com/store/asset/133519889832441/Studio-Wally-With-package-types) |
-| [Bounding Box](./bounding-box.md) | One-click bounding-box part for a model | Free | [Get it](https://create.roblox.com/store/asset/83615267790769/Bounding-Box-Plugin) |
-| [Init Framework](./init-framework.md) | One-click game setup | Free (early version) | [Get it](https://create.roblox.com/store/asset/77164672536940/Init-Framework) |
-| [Infinite Ocean](./infinite-ocean.md) | Infinite animated ocean with physics and weather | Paid | [Get it](https://create.roblox.com/store/asset/76752250508724/Infinite-Ocean) |
-| [Flashback](./flashback.md) | Record gameplay and play it back with scrubbing and slow motion | Paid | [Get it](https://create.roblox.com/store/asset/81981489933039/Flashback-Record-and-Replay-Gameplay) |
-| [Viewmodel Editor](./viewmodel-editor.md) | First-person viewmodel editor | Unreleased | Coming soon |
+| Plugin | What it does | Price | License | Store |
+| --- | --- | --- | --- | --- |
+| [Packager](./packager.md) | Package and unpack whole systems between experiences | Free | Upstream (fork) | [Get it](https://create.roblox.com/store/asset/85885451493408/Packager) |
+| [Studio Wally](./studio-wally.md) | Install Wally packages from inside Studio, with types | Free | Upstream MIT (fork) | [Get it](https://create.roblox.com/store/asset/133519889832441/Studio-Wally-With-package-types) |
+| [Bounding Box](./bounding-box.md) | One-click bounding-box part for a model | Free | FSL-1.1-ALv2 | [Get it](https://create.roblox.com/store/asset/83615267790769/Bounding-Box-Plugin) |
+| [Init Framework](./init-framework.md) | One-click game setup | Free (early version) | FSL-1.1-ALv2 | [Get it](https://create.roblox.com/store/asset/77164672536940/Init-Framework) |
+| [Infinite Ocean](./infinite-ocean.md) | Infinite animated ocean with physics and weather | Paid | Proprietary | [Get it](https://create.roblox.com/store/asset/76752250508724/Infinite-Ocean) |
+| [Flashback](./flashback.md) | Record gameplay and play it back with scrubbing and slow motion | Paid | Proprietary | [Get it](https://create.roblox.com/store/asset/81981489933039/Flashback-Record-and-Replay-Gameplay) |
+| [Viewmodel Editor](./viewmodel-editor.md) | First-person viewmodel editor | Unreleased | FSL-1.1-ALv2 | Coming soon |
 
 ## Installing any plugin
 

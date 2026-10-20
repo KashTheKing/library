@@ -25,6 +25,10 @@ Init Framework sets a new place up the way I start every game: the [Init](../pac
 
 Follow the [Discord](https://discord.gg/6HYgCk22eD) for release announcements.
 
+## License
+
+Init Framework is licensed under the [Functional Source License, Version 1.1, ALv2 Future License](https://github.com/KashTheKing/library/blob/main/plugins/init-framework/LICENSE.md) (FSL-1.1-ALv2). You can use, change and share it for anything except a competing product, and each version becomes Apache 2.0 two years after its release.
+
 ## Help
 
 [Discord](https://discord.gg/6HYgCk22eD) · [GitHub issues](https://github.com/KashTheKing/library/issues) · [Help & contact](../support.md)
