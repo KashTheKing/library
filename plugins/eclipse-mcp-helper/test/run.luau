@@ -167,6 +167,39 @@ H.test("offset keys the joint's current C0 times the offset", function()
 	H.eq((req.Value.Position - want.Position).Magnitude < 1e-5 and (req.Value.UpVector - want.UpVector).Magnitude < 1e-5, true)
 end)
 
+H.test("a Motor6D target (what ListTracks returns) offsets from its own C0", function()
+	table.clear(calls)
+	local ok, err = run(claude, "eclipse.invoke", {
+		action = "SetKeyframe",
+		request = { Target = "Workspace.Rig.Torso.Neck", Frame = 6, Offset = { ["$cf"] = { p = { 0, 0, 0 }, r = { 0, 25, 0 } } } },
+	})
+	H.eq(ok, true, tostring(err))
+	local req = calls[#calls - 1].request.Actions[1].Request
+	H.eq(req.Target, neck)
+	local want = neck.C0 * CFrame.fromOrientation(0, math.rad(25), 0)
+	H.eq((req.Value.LookVector - want.LookVector).Magnitude < 1e-5, true)
+end)
+
+H.test("keys on the real rig land on Eclipse's preview clone of it", function()
+	local camera = roblox.Instance.new("Camera")
+	camera.Parent = P.workspace
+	P.workspace.CurrentCamera = camera
+	local preview = roblox.Instance.new("Model")
+	preview.Name = "EclipseLivePreview"
+	preview.Parent = camera
+	local clone = rig:Clone()
+	clone.Parent = preview
+	local cloneNeck = clone:FindFirstChild("Torso"):FindFirstChild("Neck")
+	table.clear(calls)
+	local ok, err = run(claude, "eclipse.invoke", { action = "SetKeyframe", request = { Target = "Workspace.Rig.Torso.Neck", Frame = 2, Value = { ["$cf"] = { p = { 0, 1, 0 }, r = { 0, 0, 0 } } } } })
+	H.eq(ok, true, tostring(err))
+	H.eq(calls[#calls - 1].request.Actions[1].Request.Target, cloneNeck)
+	-- Reads and AddObject keep the real instance.
+	run(claude, "eclipse.invoke", { action = "ListProperties", request = { Target = "Workspace.Rig" } })
+	H.eq(calls[#calls].request.Target, rig)
+	preview:Destroy()
+end)
+
 H.test("batches get the helper's name; shared batches and raw undo are refused", function()
 	local ok = run(claude, "eclipse.invoke", { action = "Batch", request = { Name = "Idle pose", Actions = { { Action = "SetKeyframe", Request = { Target = "Workspace.Rig.Torso", Frame = 0 } } } } })
 	H.eq(ok, true)

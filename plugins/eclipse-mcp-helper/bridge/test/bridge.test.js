@@ -195,6 +195,24 @@ test('webhook runs a call in one request', async (t) => {
 	assert.equal((await api('POST', '/hook', { name: 'Panel', op: 'studio.rigs' })).body.helper, 'Panel');
 });
 
+test('webhook keeps one identity per name and a failed edit frees its tracks', async (t) => {
+	const { port, api, join } = await setup(t);
+	const studio = fakeStudio(port, (cmd) => {
+		if (cmd.args.request && cmd.args.request.Frame === 99) throw new Error('Choose one track');
+		return { who: cmd.agent.name };
+	});
+	t.after(studio.stop);
+	await join('Claude'); // an MCP helper already holds the name
+	const edit = (frame) => api('POST', '/hook', { name: 'Claude', op: 'eclipse.invoke', args: { action: 'SetKeyframe', request: { Target: 'Workspace.Rig.Head', Frame: frame } } });
+	const first = await edit(99);
+	assert.equal(first.status, 400);
+	const second = await edit(1);
+	assert.equal(second.status, 200, 'the failed call left no lease behind');
+	assert.equal(second.body.helper, first.body.helper);
+	const names = (await api('GET', '/agent/presence')).body.agents.map((a) => a.name);
+	assert.deepEqual(names.sort(), ['Claude', 'Claude 2']);
+});
+
 test('no Studio means a clear error, and a silent Studio times out', async (t) => {
 	const { port, api, join } = await setup(t, { callTimeoutMs: 300 });
 	const a = await join('Claude');

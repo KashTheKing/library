@@ -76,6 +76,9 @@ local function label(agent: Agent, text: string): string
 end
 
 local function motorFor(part: Instance): Motor6D?
+	if part:IsA("Motor6D") then
+		return part -- ListTracks hands out the joint itself
+	end
 	local model: Instance? = part:FindFirstAncestorWhichIsA("Model") or part.Parent
 	if not model then
 		return nil
@@ -86,6 +89,58 @@ local function motorFor(part: Instance): Motor6D?
 		end
 	end
 	return nil
+end
+
+-- Eclipse animates a clone of the rig (Camera.EclipseLivePreview.<rig>). A target on the real rig in Workspace maps
+-- to the same instance in that clone, so "Workspace.Rig.Head" works as well as the path ListTracks returns.
+local function toPreview(inst: Instance): Instance
+	local camera = workspace.CurrentCamera
+	local preview = camera and camera:FindFirstChild("EclipseLivePreview")
+	if not preview or inst:IsDescendantOf(preview) then
+		return inst
+	end
+	local path, node = {}, inst
+	while node and node.Parent ~= workspace do
+		table.insert(path, 1, node.Name)
+		node = node.Parent :: Instance
+	end
+	if not node then
+		return inst
+	end
+	local found: Instance? = preview:FindFirstChild(node.Name)
+	for _, name in path do
+		found = found and found:FindFirstChild(name)
+	end
+	return found or inst
+end
+
+local KEYED = { SetKeyframe = true, SetEasing = true }
+
+local function remapTargets(action: string, request: any)
+	if type(request) ~= "table" then
+		return
+	end
+	if action == "Batch" and type(request.Actions) == "table" then
+		for _, step in request.Actions do
+			if type(step) == "table" and type(step.Action) == "string" then
+				remapTargets(step.Action, step.Request)
+			end
+		end
+		return
+	end
+	if not KEYED[action] then
+		return
+	end
+	if typeof(request.Target) == "Instance" then
+		request.Target = toPreview(request.Target)
+	end
+	if type(request.Targets) == "table" then
+		for i, t in request.Targets do
+			if typeof(t) == "Instance" then
+				request.Targets[i] = toPreview(t)
+			end
+		end
+	end
 end
 
 -- Offset = "bend from where the joint is now": Value = C0 * Offset on the joint that drives the target.
@@ -143,6 +198,7 @@ handlers["eclipse.invoke"] = function(ctx, cmd)
 	assert(action ~= "BeginBatch" and action ~= "EndBatch", "Use the Batch action instead")
 	local e = endpoint(ctx)
 	local request = Codec.decode(cmd.args.request or {}, ctx.root)
+	remapTargets(action, request)
 	applyOffset(request)
 	if action == "Batch" and type(request.Actions) == "table" then
 		for _, step in request.Actions do
