@@ -48,7 +48,7 @@ local function heading(scope: Fusion.Scope<typeof(Fusion)>, text: string, order:
 		BackgroundTransparency = 1,
 		FontFace = Theme.FontBold,
 		TextSize = Theme.TextSize.Body,
-		TextColor3 = Theme.Colors.Text,
+		TextColor3 = Theme.get("Text"),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Text = text,
 	}
@@ -68,7 +68,7 @@ local function App(scope: Fusion.Scope<typeof(Fusion)>, props: Props): Frame
 		Name = "EclipseMCPHelper",
 		Parent = props.Parent,
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Theme.Colors.Background,
+		BackgroundColor3 = Theme.get("Background"),
 		[Children] = {
 			scope:New "UIPadding" {
 				PaddingTop = UDim.new(0, Theme.Padding),
@@ -126,7 +126,7 @@ local function App(scope: Fusion.Scope<typeof(Fusion)>, props: Props): Frame
 				BackgroundTransparency = 1,
 				FontFace = Theme.Font,
 				TextSize = Theme.TextSize.Small,
-				TextColor3 = Theme.Colors.TextDim,
+				TextColor3 = Theme.get("TextDim"),
 				TextWrapped = true,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Visible = scope:Computed(function(use)
@@ -178,7 +178,7 @@ local function App(scope: Fusion.Scope<typeof(Fusion)>, props: Props): Frame
 						BackgroundTransparency = 1,
 						FontFace = Theme.Font,
 						TextSize = Theme.TextSize.Small,
-						TextColor3 = Theme.Colors.TextDim,
+						TextColor3 = Theme.get("TextDim"),
 						TextWrapped = true,
 						TextXAlignment = Enum.TextXAlignment.Left,
 						Visible = scope:Computed(function(use)
@@ -205,7 +205,7 @@ local function App(scope: Fusion.Scope<typeof(Fusion)>, props: Props): Frame
 				Name = "Activity",
 				LayoutOrder = 7,
 				Size = UDim2.new(1, 0, 1, -240),
-				BackgroundColor3 = Theme.Colors.Surface,
+				BackgroundColor3 = Theme.get("Surface"),
 				BorderSizePixel = 0,
 				ScrollBarThickness = 4,
 				AutomaticCanvasSize = Enum.AutomaticSize.Y,

@@ -35,4 +35,4 @@ else
 	echo "Claude Code isn't on PATH; add the MCP server yourself: node $here/bridge/src/mcp.js --name $name"
 fi
 
-echo "Done. Restart Studio, open Eclipse Animator and an animation, then open the MCP Helper panel from the Plugins tab."
+echo "Done. Restart Studio, open Eclipse Animator and an animation, then click HELPERS in Eclipse's top bar."

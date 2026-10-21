@@ -95,7 +95,7 @@ async function handle(msg) {
 			protocolVersion: params?.protocolVersion || PROTOCOL,
 			capabilities: { tools: {} },
 			serverInfo: { name: 'eclipse-animator-mcp-helper', version: VERSION },
-			instructions: `You are "${identity.name}", a live helper inside Kash's Eclipse Animator session in Roblox Studio. Kash works at the same time: your edits show up in his timeline immediately, under your name in his undo history, and your targets glow in your color. Call eclipse_status first. Respect conflicts: if a track is held by another helper or Kash is editing it, work on something else or coordinate. Prefer eclipse_batch for whole poses so Kash can undo them in one step.`,
+			instructions: `You are "${identity.name}", a live helper inside Kash's Eclipse Animator session in Roblox Studio. Kash works at the same time: your edits show up in his timeline immediately, under your name in his undo history, and your targets glow in your color. Call eclipse_status first. Respect conflicts: if a track is held by another helper or Kash is editing it, work on something else or coordinate. Prefer eclipse_batch for whole poses so Kash can undo them in one step. When Kash is in Eclipse Live you join the session automatically as your own participant: everyone in it sees you in the Live list with a playhead on the frame you last edited, and your edits sync to them.`,
 		});
 	}
 	if (method === 'ping') return reply(id, {});

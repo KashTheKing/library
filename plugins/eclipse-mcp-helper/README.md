@@ -22,7 +22,10 @@ curl / panel (webhook)  ───────┘                     leases, pre
 - **bridge/src/mcp.js**: the MCP server. Every AI session runs its own copy, which joins the bridge as one helper.
 - **plugin/**: the Studio plugin (Rojo project, UI in Fusion 0.3 with UI Labs stories). It long-polls the bridge
   (Studio plugins can't host servers), runs each command through Eclipse's API, outlines what each helper touches,
-  and tells the bridge what you are doing.
+  and tells the bridge what you are doing. It has no toolbar of its own: it adds a **HELPERS** button to Eclipse's
+  top bar (a copy of Eclipse's own bar button, made at runtime) and its panel takes its colors from your Eclipse
+  theme, following you when you change it. A plugin action, "Eclipse Animator: Helpers", opens the panel too, so you
+  can bind a shortcut to it.
 
 ## Set up
 
@@ -32,7 +35,7 @@ curl / panel (webhook)  ───────┘                     leases, pre
    On Windows: `rojo build default.project.json -o %LOCALAPPDATA%\Roblox\Plugins\EclipseMCPHelper.rbxm`, then
    `claude mcp add --scope user eclipse -- node <path>\bridge\src\mcp.js --name Claude`.
 3. Open Studio, Eclipse Animator and an animation. The first time, Studio asks whether the helper plugin may reach
-   `127.0.0.1`: allow it. Open **MCP Helper** from the Plugins tab to see the panel.
+   `127.0.0.1`: allow it. Click **HELPERS** in Eclipse's top bar to see the panel.
 4. Ask Claude Code to animate, e.g. "Block out a 24-frame idle breath on Workspace.Rig".
 
 ### Many helpers at once
@@ -76,6 +79,15 @@ Values travel as JSON: instances as `{"$inst":["Workspace","Rig","Head"]}` or `"
 - **Your controls:** the panel can pause all helpers, stop or resume one helper, and hide the outlines.
 - Eclipse's own `BeginBatch`/`EndBatch` are refused because they are shared by everyone; `Batch` does the same job
   atomically.
+
+## Eclipse Live
+
+When you start or join an Eclipse Live session, every helper joins it with you. Each one gets its own entry in the
+session (Eclipse Live's Peers folder), so everyone in the Live window sees "Claude" (and "Claude 2"...) under its own
+color, with a playhead on the frame it last edited (`helper_focus` with `frame` moves it). Helpers edit through your
+Eclipse, so their keys sync to the room like yours. A helper entry never hosts, never publishes a file and has no
+user id, so it can't take over a room or drive anyone's playback. Pausing or stopping a helper takes it out of the
+session; leaving Live, closing the room or closing Studio removes them all. `eclipse_status` shows the session.
 
 ## Webhook
 

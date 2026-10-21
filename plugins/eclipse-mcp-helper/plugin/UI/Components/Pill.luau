@@ -19,7 +19,7 @@ local function Pill(scope: Fusion.Scope<typeof(Fusion)>, props: Props): Frame
 		Name = "Pill",
 		AutomaticSize = Enum.AutomaticSize.X,
 		Size = UDim2.fromOffset(0, 24),
-		BackgroundColor3 = Theme.Colors.SurfaceLight,
+		BackgroundColor3 = Theme.get("SurfaceLight"),
 		LayoutOrder = props.LayoutOrder,
 		[Children] = {
 			scope:New "UICorner" { CornerRadius = UDim.new(1, 0) },
@@ -43,7 +43,7 @@ local function Pill(scope: Fusion.Scope<typeof(Fusion)>, props: Props): Frame
 				BackgroundTransparency = 1,
 				FontFace = Theme.Font,
 				TextSize = Theme.TextSize.Small,
-				TextColor3 = Theme.Colors.Text,
+				TextColor3 = Theme.get("Text"),
 				Text = props.Text,
 			},
 		},
