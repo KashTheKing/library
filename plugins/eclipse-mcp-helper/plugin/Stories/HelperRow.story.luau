@@ -23,7 +23,7 @@ return {
 		local ui = scope:New "Frame" {
 			Parent = props.target,
 			Size = UDim2.fromScale(1, 1),
-			BackgroundColor3 = Theme.Colors.Background,
+			BackgroundColor3 = Theme.get("Background"),
 			[Fusion.Children] = {
 				scope:New "UIListLayout" { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder },
 				scope:New "UIPadding" { PaddingTop = UDim.new(0, 16), PaddingLeft = UDim.new(0, 16), PaddingRight = UDim.new(0, 16) },
