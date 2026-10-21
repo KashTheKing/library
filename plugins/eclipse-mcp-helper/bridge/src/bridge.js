@@ -117,7 +117,7 @@ function createBridge(options = {}) {
 	function join({ name, color, kind }) {
 		const id = crypto.randomUUID();
 		const agent = {
-			id, name: uniqueName(name), color: validColor(color) || config.PALETTE[colorIndex++ % config.PALETTE.length],
+			id, name: uniqueName(name), asked: String(name || ''), color: validColor(color) || config.PALETTE[colorIndex++ % config.PALETTE.length],
 			kind: kind === 'webhook' ? 'webhook' : 'agent', status: 'idle', stopped: false, lastSeen: now(), joinedAt: now(),
 		};
 		agents.set(id, agent);
@@ -169,6 +169,8 @@ function createBridge(options = {}) {
 				const c = leases.check(agent.id, keys, studio.human);
 				if (c) return resolve({ ok: false, conflict: c.kind, error: conflictMessage(c) });
 			}
+			// Keys this call newly reserves; a failed edit hands them back so it never blocks the next try.
+			const fresh = keys.filter((k) => !leases.list().some((l) => l.key === k && l.agentId === agent.id));
 			if (keys.length) leases.take(agent.id, keys);
 
 			const id = crypto.randomUUID();
@@ -177,6 +179,7 @@ function createBridge(options = {}) {
 				pending.delete(id);
 				const i = studio.queue.indexOf(command);
 				if (i >= 0) studio.queue.splice(i, 1);
+				if (fresh.length) leases.release(agent.id, fresh);
 				resolve({ ok: false, error: 'Studio did not answer in time. Is Studio busy or the plugin paused?' });
 			}, t.call);
 			pending.set(id, {
@@ -184,6 +187,7 @@ function createBridge(options = {}) {
 				done(result) {
 					clearTimeout(timer);
 					pending.delete(id);
+					if (!result.ok && fresh.length) leases.release(agent.id, fresh);
 					resolve(result);
 				},
 			});
@@ -398,8 +402,9 @@ function createBridge(options = {}) {
 
 		// --- webhook: one request, no MCP needed ---
 		'POST /hook': async (req, res, body) => {
+			// One webhook identity per requested name, even when an MCP helper already owns that name ("Claude 2").
 			const name = uniqueNameFor(body.name);
-			let a = [...agents.values()].find((x) => x.kind === 'webhook' && x.name === name);
+			let a = [...agents.values()].find((x) => x.kind === 'webhook' && x.asked === name);
 			if (!a) a = join({ name, color: body.color, kind: 'webhook' });
 			a.lastSeen = now();
 			const result = await call(a, body);
