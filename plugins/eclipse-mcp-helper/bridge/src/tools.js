@@ -36,7 +36,7 @@ function editRequest(a) {
 const TOOLS = [
 	{
 		name: 'eclipse_status',
-		description: 'Start here. Shows the connected Studio windows, whether Eclipse Animator is open with an animation, its API version and actions, the current frame/FPS, undo state, the other helpers online, the tracks they hold, and what Kash is doing (selection, frame, editing now).',
+		description: 'Start here. Shows the connected Studio windows, whether Eclipse Animator is open with an animation, its API version and actions, the current frame/FPS, undo state, the other helpers online, the tracks they hold, what Kash is doing (selection, frame, editing now), and the Eclipse Live session you are in, if any.',
 		inputSchema: { type: 'object', properties: { studio } },
 		call: (a) => ({ op: 'eclipse.status', args: {}, studio: a.studio }),
 		presence: true,
@@ -152,9 +152,9 @@ const TOOLS = [
 	},
 	{
 		name: 'helper_focus',
-		description: 'Show Kash what you are looking at: outlines the targets in your color with your name and a short note in the Studio viewport, without editing anything.',
-		inputSchema: { type: 'object', properties: { targets: { type: 'array', items: target }, note: { type: 'string', maxLength: 80 }, studio }, required: ['targets'] },
-		call: (a) => ({ op: 'helper.focus', args: { targets: a.targets, note: a.note }, studio: a.studio }),
+		description: 'Show Kash what you are looking at: outlines the targets in your color with your name and a short note in the Studio viewport, without editing anything. frame moves your playhead in Eclipse Live.',
+		inputSchema: { type: 'object', properties: { targets: { type: 'array', items: target }, note: { type: 'string', maxLength: 80 }, frame: { type: 'number' }, studio }, required: ['targets'] },
+		call: (a) => ({ op: 'helper.focus', args: { targets: a.targets, note: a.note, frame: a.frame }, studio: a.studio }),
 	},
 	{
 		name: 'helper_claim',

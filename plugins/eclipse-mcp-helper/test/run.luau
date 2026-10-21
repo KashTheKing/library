@@ -200,6 +200,110 @@ H.test("keys on the real rig land on Eclipse's preview clone of it", function()
 	preview:Destroy()
 end)
 
+H.test("Live: helpers join Kash's Eclipse Live room as their own participants and leave cleanly", function()
+	local Live = P.require("Live")
+	local storage = P.game:GetService("ServerStorage")
+	local saves = roblox.Instance.new("Folder")
+	saves.Name = "Eclipse Animator Saves"
+	saves.Parent = storage
+	local root = roblox.Instance.new("Folder")
+	root.Name = "EclipseAnimator_Live"
+	root:SetAttribute("EclipseLiveVersion", 1)
+	root.Parent = saves
+	local room = roblox.Instance.new("Folder")
+	room.Name = "ROOM"
+	room:SetAttribute("Protocol", 35)
+	room:SetAttribute("FileName", "Walk")
+	room.Parent = root
+	local peers = roblox.Instance.new("Folder")
+	peers.Name = "Peers"
+	peers.Parent = room
+	local kash = roblox.Instance.new("Folder")
+	kash.Name = "KASH"
+	kash:SetAttribute("UserId", 7)
+	kash:SetAttribute("Seen", os.time())
+	kash.Parent = peers
+
+	local live = Live.new(storage, 99)
+	live:update({ claude :: any }, 3, 60)
+	H.eq(#peers:GetChildren(), 1, "not Kash's room: nobody joins")
+
+	live = Live.new(storage, 7)
+	live:noteFrame("a1", 12)
+	live:update({ claude :: any, other :: any }, 3, 30)
+	local mine = peers:FindFirstChild("Helper-a1")
+	H.eq(mine ~= nil, true)
+	H.eq(mine:GetAttribute("UserName"), "Claude")
+	H.eq(mine:GetAttribute("UserId"), 0)
+	H.eq(mine:GetAttribute("Frame"), 12)
+	H.eq(peers:FindFirstChild("Helper-a2"):GetAttribute("Frame"), 3, "no edit yet: sits on Kash's frame")
+	H.eq(mine:GetAttribute("Color"):ToHex():upper(), "FF8A3D")
+	H.eq(mine:GetAttribute("Manifest"), nil, "never publishes a document")
+	H.eq(live:status().members, 3)
+	H.eq(live:status().file, "Walk")
+
+	live:update({ claude :: any }, 3, 30)
+	H.eq(peers:FindFirstChild("Helper-a2"), nil, "a helper that left steps out")
+
+	room:SetAttribute("Closed", true)
+	live:update({ claude :: any }, 3, 30)
+	H.eq(peers:FindFirstChild("Helper-a1"), nil, "a closed room is left")
+	H.eq(live:status(), nil)
+	saves:Destroy()
+end)
+
+H.test("Eclipse window: theme is read off Eclipse's UI and HELPERS joins its top bar", function()
+	local EclipseWindow = P.require("EclipseWindow")
+	local grey = roblox.Color3.fromHex("777777")
+	local defaults = { Background = grey, Surface = grey, SurfaceLight = grey, Accent = grey, Text = grey, TextDim = grey, Stroke = grey, Divider = grey }
+	local service = roblox.Instance.new("Folder")
+	local widget = roblox.Instance.new("DockWidgetPluginGui")
+	widget.Title = "Eclipse Animator · Timeline"
+	widget.Parent = service
+	local bar = roblox.Instance.new("Frame")
+	bar:SetAttribute("ThemeBg", "Top")
+	bar.BackgroundColor3 = roblox.Color3.fromHex("101010")
+	bar.Parent = widget
+	local menu = roblox.Instance.new("Frame")
+	menu.Name = "MenuButtons"
+	menu.Parent = bar
+	local recovery = roblox.Instance.new("TextButton")
+	recovery.Name = "RecoveryButton"
+	recovery:SetAttribute("ThemeBg", "TopBtn")
+	recovery.BackgroundColor3 = roblox.Color3.fromHex("303030")
+	recovery.LayoutOrder = 5
+	recovery.Parent = menu
+	local label = roblox.Instance.new("TextLabel")
+	label.Text = "RECOVERY"
+	label:SetAttribute("ThemeTxt", "TopT")
+	label.TextColor3 = roblox.Color3.fromHex("ffffff")
+	label.Parent = recovery
+	local text = roblox.Instance.new("TextLabel")
+	text:SetAttribute("ThemeTxt", "Txt")
+	text.TextColor3 = roblox.Color3.fromHex("eeeeee")
+	text.Parent = widget
+
+	local w, m = EclipseWindow.find(service)
+	H.eq(w, widget)
+	H.eq(m, menu)
+	local palette = EclipseWindow.palette(EclipseWindow.samples(widget), defaults)
+	H.eq(palette.Background:ToHex():lower(), "101010")
+	H.eq(palette.SurfaceLight:ToHex():lower(), "303030")
+	H.eq(palette.Text:ToHex():lower(), "eeeeee")
+	H.eq(palette.Stroke, grey, "missing tokens fall back to Eclipse's default look")
+
+	local clicks = 0
+	local button = EclipseWindow.inject(menu, function()
+		clicks += 1
+	end)
+	H.eq(button.Name, "EclipseMCPHelperButton")
+	H.eq(button.LayoutOrder, 4)
+	H.eq(button:FindFirstChildWhichIsA("TextLabel").Text, "HELPERS")
+	H.eq(button:GetAttribute("ThemeBg"), "TopBtn", "Eclipse keeps theming the copy")
+	H.eq(EclipseWindow.inject(menu, function() end), button, "never added twice")
+	H.eq(recovery:FindFirstChildWhichIsA("TextLabel").Text, "RECOVERY", "Eclipse's own button is untouched")
+end)
+
 H.test("batches get the helper's name; shared batches and raw undo are refused", function()
 	local ok = run(claude, "eclipse.invoke", { action = "Batch", request = { Name = "Idle pose", Actions = { { Action = "SetKeyframe", Request = { Target = "Workspace.Rig.Torso", Frame = 0 } } } } })
 	H.eq(ok, true)

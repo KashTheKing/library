@@ -27,11 +27,12 @@ You need your own copy of Eclipse Animator. Nothing of Eclipse's is included or 
 1. Run `bash plugins/eclipse-mcp-helper/install.sh` (needs Node 18+, Rojo and Claude Code). It installs the Studio
    plugin and adds the `eclipse` MCP server to Claude Code.
 2. Open Studio, Eclipse Animator and an animation, and allow the plugin to reach `127.0.0.1` when Studio asks.
-3. Open **MCP Helper** from the Plugins tab, then ask Claude Code to animate. Open more sessions, or run
+3. Click **HELPERS** in Eclipse's top bar (next to RECOVERY and SETTINGS), then ask Claude Code to animate. Open more sessions, or run
    `node bridge/src/deploy.js --count 3 --task "..."`, for more helpers.
 
-The panel shows every helper and what it is doing, a live activity feed, and buttons to pause all helpers, stop one,
-or hide the outlines.
+The panel wears your Eclipse theme and shows every helper and what it is doing, a live activity feed, and buttons to
+pause all helpers, stop one, or hide the outlines. When you start or join Eclipse Live, every helper joins the session
+too: it is listed in the Live window under its own name and color, with a playhead on the frame it is working on.
 
 Full setup, the tool list, the webhook and the conflict rules are in the
 [README](https://github.com/KashTheKing/library/tree/main/plugins/eclipse-mcp-helper).

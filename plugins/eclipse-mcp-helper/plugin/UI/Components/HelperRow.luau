@@ -24,7 +24,7 @@ local function HelperRow(scope: Fusion.Scope<typeof(Fusion)>, props: Props): Fra
 	return (scope:New "Frame" {
 		Name = "HelperRow",
 		Size = UDim2.new(1, 0, 0, Theme.RowHeight),
-		BackgroundColor3 = Theme.Colors.Surface,
+		BackgroundColor3 = Theme.get("SurfaceLight"),
 		LayoutOrder = props.LayoutOrder,
 		[Children] = {
 			scope:New "UICorner" { CornerRadius = Theme.Corner },
@@ -46,7 +46,7 @@ local function HelperRow(scope: Fusion.Scope<typeof(Fusion)>, props: Props): Fra
 				BackgroundTransparency = 1,
 				FontFace = Theme.FontBold,
 				TextSize = Theme.TextSize.Body,
-				TextColor3 = Theme.Colors.Text,
+				TextColor3 = Theme.get("Text"),
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				Text = scope:Computed(function(use)
@@ -61,7 +61,7 @@ local function HelperRow(scope: Fusion.Scope<typeof(Fusion)>, props: Props): Fra
 				BackgroundTransparency = 1,
 				FontFace = Theme.Font,
 				TextSize = Theme.TextSize.Small,
-				TextColor3 = Theme.Colors.TextDim,
+				TextColor3 = Theme.get("TextDim"),
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				Text = scope:Computed(function(use)

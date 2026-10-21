@@ -43,7 +43,7 @@ function createBridge(options = {}) {
 
 	function publicStudio(s) {
 		return {
-			id: s.id, place: s.place, user: s.user, paused: s.paused, eclipse: s.eclipse,
+			id: s.id, place: s.place, user: s.user, paused: s.paused, eclipse: s.eclipse, live: s.live || null,
 			human: s.human && {
 				name: s.human.name, selection: s.human.selection, frame: s.human.frame, fps: s.human.fps,
 				editingNow: !!(s.human.editAt && now() - s.human.editAt < t.human),
@@ -316,6 +316,7 @@ function createBridge(options = {}) {
 			const s = studioFrom(body, res);
 			if (!s) return;
 			if (body.eclipse) s.eclipse = body.eclipse;
+			if ('live' in body) s.live = body.live && typeof body.live === 'object' ? body.live : null;
 			if (body.human) {
 				const h = body.human;
 				const prev = s.human || {};

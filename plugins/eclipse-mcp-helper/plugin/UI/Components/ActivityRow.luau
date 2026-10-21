@@ -66,7 +66,7 @@ local function ActivityRow(scope: Fusion.Scope<typeof(Fusion)>, props: Props): F
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				TextColor3 = scope:Computed(function(use)
 					local c = use(parts).color
-					return if c then Theme.hex(c) else Theme.Colors.TextDim
+					return if c then Theme.hex(c) else use(Theme.get("TextDim"))
 				end),
 				Text = scope:Computed(function(use)
 					return use(parts).who
@@ -79,7 +79,7 @@ local function ActivityRow(scope: Fusion.Scope<typeof(Fusion)>, props: Props): F
 				BackgroundTransparency = 1,
 				FontFace = Theme.Font,
 				TextSize = Theme.TextSize.Small,
-				TextColor3 = Theme.Colors.TextDim,
+				TextColor3 = Theme.get("TextDim"),
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				Text = scope:Computed(function(use)

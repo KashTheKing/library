@@ -3,6 +3,7 @@
 -- to him. Commands come from the local bridge; edits go through Eclipse's own extension API.
 
 local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
 local Selection = game:GetService("Selection")
 local StudioService = game:GetService("StudioService")
 
@@ -12,17 +13,23 @@ local Bridge = require(Root.Bridge)
 local Commands = require(Root.Commands)
 local Ownership = require(Root.Ownership)
 local Presence = require(Root.Presence)
+local Live = require(Root.Live)
+local EclipseWindow = require(Root.EclipseWindow)
+local Theme = require(Root.UI.Theme)
 local Watcher = require(Root.Watcher)
 local App = require(Root.UI.App)
 
 local VERSION = "1.0.0"
 local PORT = tonumber(plugin:GetSetting("Port")) or 49210
 
+local okId, studioUserId = pcall(function()
+	return StudioService:GetUserId()
+end)
+local userId: number = if okId and type(studioUserId) == "number" then studioUserId else 0
+
 local function userName(): string
-	local ok, id = pcall(function()
-		return StudioService:GetUserId()
-	end)
-	if ok and id and id > 0 then
+	local id = userId
+	if id > 0 then
 		local okName, name = pcall(Players.GetNameFromUserIdAsync, Players, id)
 		if okName then
 			return name
@@ -46,6 +53,7 @@ local state: App.State = {
 
 local presence = Presence.new()
 presence:setEnabled(Fusion.peek(state.ShowPresence))
+local live = Live.new(ServerStorage, userId)
 
 local ctx: Commands.Context = {
 	root = game,
@@ -54,13 +62,19 @@ local ctx: Commands.Context = {
 	selection = function()
 		return Selection:Get()
 	end,
-	touch = function(agent, targets, note)
+	touch = function(agent, targets, note, frame)
 		presence:touch(agent, targets, note)
+		if frame then
+			live:noteFrame(agent.id, frame)
+		end
 	end,
 	human = function()
 		return nil
 	end,
 	busy = false,
+	live = function()
+		return live:status()
+	end,
 }
 
 local lastSnapshot: any = nil
@@ -125,23 +139,53 @@ bridge = Bridge.new(PORT, {
 })
 bridge:start()
 
-local stopWatching = Watcher.start(ctx, me, function(snap)
+local stopWatching = Watcher.start(ctx, me, function(snap: any)
+	snap.live = live:status() or false -- false tells the bridge Live ended
 	lastSnapshot = snap
 	state.Eclipse:set(snap.eclipse)
 	bridge:state(snap)
 end)
 
--- UI: a dock widget opened from the toolbar.
-local toolbar = plugin:CreateToolbar("Eclipse Animator MCP Helper")
-local button = toolbar:CreateButton("MCP Helper", "Show the AI helpers working in Eclipse Animator", "")
-button.ClickableWhenViewportHidden = true
+-- Eclipse Live: while Kash is in a Live session, each helper is in it too (paused or stopped helpers step out).
+local liveRunning = true
+task.spawn(function()
+	while liveRunning do
+		local agents = if Fusion.peek(state.Paused) then {} else Fusion.peek(state.Agents)
+		local eclipse = Fusion.peek(state.Eclipse)
+		pcall(live.update, live, agents, eclipse.frame, eclipse.fps)
+		task.wait(1)
+	end
+end)
 
+-- UI: a dock widget opened from a HELPERS button in Eclipse's own top bar (no toolbar of its own). A plugin action
+-- (bind a shortcut to it in Studio's shortcut settings) opens it too.
 local widget = plugin:CreateDockWidgetPluginGui(
 	"EclipseMCPHelper",
 	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 340, 520, 280, 320)
 )
-widget.Title = "Eclipse Animator MCP Helper"
+widget.Title = "Eclipse Animator · Helpers"
 widget.Name = "EclipseMCPHelper"
+
+local function toggle()
+	widget.Enabled = not widget.Enabled
+end
+
+local eclipseWindow = EclipseWindow.watch({
+	defaults = Theme.Defaults :: any,
+	onPalette = function(palette)
+		Theme.Palette:set(palette :: any)
+	end,
+	onClick = toggle,
+})
+
+local action = plugin:CreatePluginAction(
+	"EclipseMCPHelperToggle",
+	"Eclipse Animator: Helpers",
+	"Show the AI helpers working with you in Eclipse Animator",
+	"",
+	true
+)
+action.Triggered:Connect(toggle)
 
 App(scope, {
 	State = state,
@@ -164,16 +208,17 @@ App(scope, {
 	end,
 })
 
-button.Click:Connect(function()
-	widget.Enabled = not widget.Enabled
-end)
 widget:GetPropertyChangedSignal("Enabled"):Connect(function()
-	button:SetActive(widget.Enabled)
+	eclipseWindow.setOpen(widget.Enabled)
 end)
+eclipseWindow.setOpen(widget.Enabled)
 
 plugin.Unloading:Connect(function()
 	bridge:stop()
 	stopWatching()
 	presence:destroy()
+	liveRunning = false
+	live:leave()
+	eclipseWindow.stop()
 	Fusion.doCleanup(scope)
 end)

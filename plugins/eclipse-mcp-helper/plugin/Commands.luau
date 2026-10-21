@@ -14,8 +14,9 @@ export type Context = {
 	coreGui: Instance?,
 	ownership: Ownership.Ownership,
 	selection: () -> { Instance },
-	touch: (agent: Agent, targets: { Instance }, note: string) -> (),
+	touch: (agent: Agent, targets: { Instance }, note: string, frame: number?) -> (),
 	human: () -> any,
+	live: (() -> any)?,
 	busy: boolean,
 }
 
@@ -178,6 +179,25 @@ local function targetsOf(request: any, out: { Instance })
 	end
 end
 
+-- The frame an edit lands on (first batch step that has one), so Live can put the helper's playhead there.
+local function frameOf(request: any): number?
+	if type(request) ~= "table" then
+		return nil
+	end
+	if type(request.Frame) == "number" then
+		return request.Frame
+	end
+	if type(request.Actions) == "table" then
+		for _, step in request.Actions do
+			local f = if type(step) == "table" then frameOf(step.Request) else nil
+			if f then
+				return f
+			end
+		end
+	end
+	return nil
+end
+
 local function describe(action: string, request: any): string
 	local t = type(request) == "table" and request.Target
 	local name = if typeof(t) == "Instance" then " " .. t.Name else ""
@@ -210,7 +230,7 @@ handlers["eclipse.invoke"] = function(ctx, cmd)
 	targetsOf(request, targets)
 	local summary = describe(action, request)
 	if #targets > 0 then
-		ctx.touch(cmd.agent, targets, summary)
+		ctx.touch(cmd.agent, targets, summary, frameOf(request))
 	end
 
 	if not EDITS[action] and action ~= "HistoryRecord" then
@@ -309,6 +329,7 @@ handlers["eclipse.status"] = function(ctx, _cmd)
 		place = game.Name,
 		eclipse = { found = #sessions > 0, sessions = {} },
 		human = ctx.human(),
+		live = if ctx.live then ctx.live() else nil,
 	}
 	for _, s in sessions do
 		table.insert(out.eclipse.sessions, { session = s.session, version = s.version })
@@ -474,7 +495,7 @@ handlers["helper.focus"] = function(ctx, cmd)
 	end
 	assert(#targets > 0, "targets is empty")
 	local note = string.sub(tostring(cmd.args.note or "looking"), 1, 80)
-	ctx.touch(cmd.agent, targets, note)
+	ctx.touch(cmd.agent, targets, note, tonumber(cmd.args.frame))
 	return { focused = #targets }, note
 end
 
