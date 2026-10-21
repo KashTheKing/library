@@ -59,6 +59,12 @@ All of my Roblox Studio plugins and plugin forks. Each installs from the Creator
     <p>Create, adjust and animate first-person viewmodels. Not released yet.</p>
     <span className="library-card-cta">Status →</span>
   </a>
+  <a className="library-card" href="./eclipse-mcp-helper/">
+    <span className="library-card-meta">free</span>
+    <h3>Eclipse Animator MCP Helper</h3>
+    <p>AI helpers that animate live with you inside Eclipse Animator, each with its own name and color.</p>
+    <span className="library-card-cta">Guide →</span>
+  </a>
 </div>
 
 ## At a glance
@@ -72,6 +78,7 @@ All of my Roblox Studio plugins and plugin forks. Each installs from the Creator
 | [Infinite Ocean](./infinite-ocean.md) | Infinite animated ocean with physics and weather | Paid | Proprietary | [Get it](https://create.roblox.com/store/asset/76752250508724/Infinite-Ocean) |
 | [Flashback](./flashback.md) | Record gameplay and play it back with scrubbing and slow motion | Paid | Proprietary | [Get it](https://create.roblox.com/store/asset/81981489933039/Flashback-Record-and-Replay-Gameplay) |
 | [Viewmodel Editor](./viewmodel-editor.md) | First-person viewmodel editor | Unreleased | FSL-1.1-ALv2 | Coming soon |
+| [Eclipse Animator MCP Helper](./eclipse-mcp-helper.md) | AI helpers that animate live with you in Eclipse Animator | Free (source) | FSL-1.1-ALv2 | [Source](https://github.com/KashTheKing/library/tree/main/plugins/eclipse-mcp-helper) |
 
 ## Installing any plugin
 
