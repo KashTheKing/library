@@ -1,0 +1,19 @@
+{
+	"name": "eclipse-mcp-helper",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Local bridge, MCP server and webhook that give AI helpers live control of Eclipse Animator in Roblox Studio.",
+	"license": "SEE LICENSE IN ../LICENSE.md",
+	"bin": {
+		"eclipse-bridge": "src/bridge.js",
+		"eclipse-mcp": "src/mcp.js",
+		"eclipse-deploy": "src/deploy.js"
+	},
+	"scripts": {
+		"start": "node src/bridge.js",
+		"test": "node --test test/*.test.js"
+	},
+	"engines": {
+		"node": ">=18"
+	}
+}

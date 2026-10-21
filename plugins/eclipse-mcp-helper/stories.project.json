@@ -1,0 +1,14 @@
+{
+	"name": "EclipseMCPHelperStories",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"EclipseMCPHelperUI": {
+				"$className": "Folder",
+				"Packages": { "$path": "plugin/Packages" },
+				"UI": { "$path": "plugin/UI" },
+				"Stories": { "$path": "plugin/Stories" }
+			}
+		}
+	}
+}
