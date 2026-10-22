@@ -97,7 +97,8 @@ test('only local, token-carrying, non-browser callers get in', async (t) => {
 	assert.equal(await raw(port, { Authorization: `Bearer ${token}`, Origin: 'https://evil.example' }), 403);
 	assert.equal(await raw(port, { Authorization: `Bearer ${token}`, Host: 'evil.example' }), 403);
 	assert.equal(await raw(port, { Origin: 'https://evil.example' }, '/plugin/hello'), 403);
-	assert.equal(fs.statSync(path.join(home, 'token')).mode & 0o077, 0);
+	// Windows has no Unix permission bits; the token file sits in the user's own profile there.
+	if (process.platform !== 'win32') assert.equal(fs.statSync(path.join(home, 'token')).mode & 0o077, 0);
 });
 
 test('helpers get unique names and their own colors', async (t) => {
