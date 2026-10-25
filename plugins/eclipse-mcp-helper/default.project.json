@@ -1,0 +1,7 @@
+{
+	"name": "EclipseMCPHelper",
+	"globIgnorePaths": ["**/Stories", "**/Stories/**"],
+	"tree": {
+		"$path": "plugin"
+	}
+}
