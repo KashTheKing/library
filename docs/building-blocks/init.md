@@ -8,7 +8,7 @@ description: A trusted module loader that requires and initializes your modules 
 
 <div className="library-links">
 
-[Source on GitHub](https://github.com/KashTheKing/library/tree/main/building-blocks/init) [Init Framework plugin](../plugins/init-framework.md) [Init package (WIP)](../packages/init.md)
+[Full docs](https://kashtheking.com/init/) [Init package](../packages/init.md) [Init Framework plugin](../plugins/init-framework.md)
 
 </div>
 
@@ -16,17 +16,9 @@ description: A trusted module loader that requires and initializes your modules 
 
 Init is my personal module loader and nearly all of my games boot with it. Instead of a tangle of scripts requiring each other at startup, you put your modules in folders, and Init requires them in a defined order, runs their initialization, and reports errors cleanly. The [Init Framework plugin](../plugins/init-framework.md) sets up a whole place around it in one click.
 
-:::info Rework in progress
-The Init package is being reworked. This building block is the current version. When the rework lands it will be published on Wally with an API reference here.
+:::info Init is now a Wally package
+Init 1.0 is on Wally as `kashtheking/init`, with its own docs at **[kashtheking.com/init](https://kashtheking.com/init/)**. Install it with the [Init Framework plugin](../plugins/init-framework.md), with Wally, or by dragging `Init.rbxm` from the [latest release](https://github.com/KashTheKing/init/releases/latest) into `ReplicatedStorage.Packages`. Coming from this building block? See [Migrating](https://kashtheking.com/init/docs/migrating/).
 :::
-
-## Install
-
-1. Download the `.rbxm` from the [`building-blocks/init` folder](https://github.com/KashTheKing/library/tree/main/building-blocks/init) on GitHub.
-2. In Roblox Studio, insert the file and open the [Packager plugin](../plugins/packager.md).
-3. Click the `.rbxm` package and press **Unpackage** to drop it into your experience.
-
-Or install the [Init Framework plugin](../plugins/init-framework.md) and let it set up the loader and folder structure for you.
 
 ## Help
 

@@ -1,29 +1,24 @@
 ---
 title: Init Framework
 sidebar_position: 4
-description: One-click game setup around the Init module loader. Early version available.
+description: One-click game setup around the Init module loader, with template buttons for Services, Controllers, Binders and more.
 ---
 
 # Init Framework
 
 <div className="library-links">
 
-[Get the early version](https://create.roblox.com/store/asset/77164672536940/Init-Framework) [Source on GitHub](https://github.com/KashTheKing/library/tree/main/plugins/init-framework) [Init building block](../building-blocks/init.md)
+[Get the plugin](https://create.roblox.com/store/asset/77164672536940/Init-Framework) [Docs](https://kashtheking.com/init/docs/install/no-code/) [Source on GitHub](https://github.com/KashTheKing/init/tree/main/plugin)
 
 </div>
 
-<span className="library-card-meta">early access</span>
+<span className="library-card-meta">free</span>
 
 **One-click game setup.**
 
-Init Framework sets a new place up the way I start every game: the [Init](../packages/init.md) module loader in place, with the folder structure and boot scripts it expects, so you can start writing modules straight away. An early version is on the Creator Store now; the plugin and the Init package are both being reworked, and documentation, references and guides will land here when they are.
+Init Framework sets a place up the way I start every game: press **Setup** and you get the [Init](../packages/init.md) loader in `ReplicatedStorage.Packages`, the `InitServer` and `InitClient` boot scripts, and the folders they load. **Add Packages** adds Trove, Signal, Packet and Binder. Then select a folder and press **Service**, **Controller**, **Gui Controller**, **Network**, **Binder**, **Bound Class**, **Class**, **InheritedClass** or **Input** to add a module from a template; rename it and the name fills into the code.
 
-## Status
-
-- **Available now:** the early-version plugin linked above, and the [Init building block](../building-blocks/init.md) if you would rather unpack the loader yourself with [Packager](./packager.md).
-- **Coming:** the reworked Init package on Wally, its API reference here, and a guide to structuring a game around it.
-
-Follow the [Discord](https://discord.gg/6HYgCk22eD) for release announcements.
+Step-by-step guide, with what every button does: **[Install without code](https://kashtheking.com/init/docs/install/no-code/)**.
 
 ## License
 

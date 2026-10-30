@@ -1,6 +1,9 @@
-# Init - Trusted module loader
-Init is my personal module loader, and I use it for nearly all of my games.
+# Init
 
-This directory is a work in progress, and init is undergoing a rework. Expect to see this directory updated once it is reworked.
+A module loader for Roblox games. Point it at folders and it loads, initializes and starts every module in order, with `OnPlayerAdded`, `Step`, `OnCharacterAdded` and friends wired up.
 
-> Plugin: https://github.com/KashTheKing/library/tree/main/plugins/init-framework
+This folder mirrors `src/Init` from **[KashTheKing/init](https://github.com/KashTheKing/init)**, where the templates, plugin, tests and AI skill live. Docs: **https://kashtheking.com/init/**
+
+```toml
+Init = "kashtheking/init@1.0.0"
+```

@@ -1,9 +1,5 @@
-# Init - Trusted module loader
+# Init - Module loader
 
-A trusted module loader that requires and initializes your modules in a safe, ordered way.
+Init is now a Wally package (`kashtheking/init`) with its own repo and docs: https://kashtheking.com/init/
 
-## Installation
-
-1. Download the `.rbxm` from this folder
-2. In Roblox Studio, open the [Packager plugin](../../plugins/packager)
-3. Click the `.rbxm` package and hit "Unpackage" to drop it into your experience
+Drag-and-drop file: `Init.rbxm` from https://github.com/KashTheKing/init/releases/latest

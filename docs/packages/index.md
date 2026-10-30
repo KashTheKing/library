@@ -155,9 +155,9 @@ Most packages depend on [sleitnick's Trove and Signal](https://sleitnick.github.
 
 <div className="library-cards">
   <a className="library-card" href="./init/">
-    <span className="library-card-meta">work in progress</span>
+    <span className="library-card-meta">module loader</span>
     <h3>Init</h3>
-    <p>My trusted module loader. Being reworked; the current version ships as a building block.</p>
+    <p>My module loader: point it at folders and it loads, initializes and starts every module in order.</p>
     <span className="library-card-cta">Docs →</span>
   </a>
 </div>
@@ -178,7 +178,7 @@ Most packages depend on [sleitnick's Trove and Signal](https://sleitnick.github.
 | [Flashback](./flashback.md) | `kashtheking/flashback` | `@1.0.0` | The Flashback replay module: record gameplay on the server and play it back on the client or in Studio. |
 | [GuiHandler](./gui-handler.md) | `kashtheking/gui-handler` | `@1.0.1` | Show and hide ScreenGuis with configurable tweens, and manage them all from one place. |
 | [Hitbox](./hitbox.md) | `kashtheking/hitbox` | `@1.0.3` | Object-oriented hitboxes on `GetPartsInPart`, with welding, timed scans and humanoid filtering. |
-| [Init](./init.md) |  | WIP | My trusted module loader. Being reworked; the current version ships as a building block. |
+| [Init](./init.md) | `kashtheking/init` | `@1.0.0` | My module loader: loads, initializes and starts every module in your folders, in order, with OnPlayerAdded, Step and friends wired up. |
 | [Mechanic](./mechanic.md) | `kashtheking/mechanic` | `@4.0.3` (deprecated) | A component-style binder that applies logic to CollectionService-tagged instances. |
 | [Ocean](./ocean.md) | `kashtheking/ocean` | `@1.1.0` | The Infinite Ocean module: an infinite sea (Gerstner or FFT waves) on `EditableMesh`, with weather, zones, water queries and events. |
 | [Packet](./packet.md) | `kashtheking/packet` | `@1.0.0` | Suphi Kaner's buffer-based networking library: declare a packet's types once, then fire and respond with typed values. |
