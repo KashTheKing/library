@@ -90,7 +90,7 @@ function fail(id, code, message) {
 async function handle(msg) {
 	const { id, method, params } = msg;
 	if (method === 'initialize') {
-		ensureAgent().catch(() => {});
+		// No eager join: a session only shows up as a helper once it actually calls an Eclipse tool.
 		return reply(id, {
 			protocolVersion: params?.protocolVersion || PROTOCOL,
 			capabilities: { tools: {} },
@@ -114,8 +114,15 @@ async function handle(msg) {
 	if (id !== undefined && id !== null) return fail(id, -32601, `Method not found: ${method}`);
 }
 
+// The heartbeat only keeps an existing helper alive. If the bridge forgot us (restart, timeout) we go quiet and
+// rejoin on the next real tool call, instead of reappearing as an idle helper on our own.
 const heartbeat = setInterval(() => {
-	if (agent) agentCall('/agent/heartbeat', {}).catch(() => {});
+	if (!agent) return;
+	bridge('POST', '/agent/heartbeat', { agentId: agent.id })
+		.then((r) => {
+			if (r.status === 404) agent = null;
+		})
+		.catch(() => {});
 }, 5000);
 heartbeat.unref();
 
