@@ -29,6 +29,9 @@ curl / panel (webhook)  ───────┘                     leases, pre
 
 ## Set up
 
+> **Just want the Studio plugin?** [`EclipseMCPHelper.rbxm`](EclipseMCPHelper.rbxm) is prebuilt: drop it in your Studio Plugins folder
+> (Studio > Plugins > Plugins Folder) and restart Studio. You still need the MCP server (step 2) for Claude Code to talk to it.
+
 1. Install Node 18+, [Rojo](https://rojo.space) and Claude Code.
 2. `bash plugins/eclipse-mcp-helper/install.sh` builds the plugin, copies it into Studio's Plugins folder, and adds
    the `eclipse` MCP server to Claude Code (helper name "Claude"; set `ECLIPSE_HELPER_NAME` to change it).
